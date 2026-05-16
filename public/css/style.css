@@ -363,20 +363,24 @@ table.lista tr:hover { background: #fafbfc; }
   .banner-clube .banner-titulo { font-size: 16px; bottom: 10px; left: 14px; }
 }
 
-/* Logo da topbar */
+/* Logo da topbar — retângulo, mostra parte de cima da imagem (logo limpo) */
 .topo-marca .logo-img {
-  width: 44px; height: 44px;
-  border-radius: 50%;
+  width: 110px; height: 44px;
   object-fit: cover;
-  background: linear-gradient(135deg, var(--amarelo) 0%, var(--amarelo-escuro) 100%);
+  object-position: center top;
+  border-radius: 8px;
+  background: var(--azul);
 }
 
-/* Logo grande do login */
+/* Logo grande do login — corta a parte de baixo (texto extra) */
 .logo-img-grande {
-  width: 130px; height: 130px;
-  margin: 0 auto 12px;
+  width: 240px; height: 100px;
+  margin: 0 auto 14px;
   display: block;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 10px;
+  background: var(--azul);
 }
 
 /* ===== Comunicados ===== */
