@@ -5,10 +5,10 @@ data/
 .env
 .DS_Store
 WhatsApp Image*.jpeg
-# Fotos originais na raiz (já copiadas para public/img)
-Logo*.jpeg
-Banner*.jpeg
-Churrasqueira*.jpeg
-Campo*.jpeg
-Quadra*.jpg
-Salão*.jpeg
+# Fotos originais na raiz (já copiadas para public/img) — só na raiz
+/Logo*.jpeg
+/Banner*.jpeg
+/Churrasqueira*.jpeg
+/Campo*.jpeg
+/Quadra*.jpg
+/Salão*.jpeg
