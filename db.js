@@ -158,13 +158,19 @@ function detectarFotosPadrao() {
       }
     }
   }
-  // Logo padrão
-  const logo = path.join(PUB, 'img', 'site', 'logo.jpeg');
-  if (fs.existsSync(logo)) {
-    const cur = db.prepare("SELECT valor FROM config_site WHERE chave = 'logo_url'").get();
-    if (!cur || !cur.valor) {
-      db.prepare(`INSERT INTO config_site (chave, valor) VALUES ('logo_url', '/img/site/logo.jpeg')
-                  ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor`).run();
+  // Logo e banner padrão
+  for (const tipo of ['logo', 'banner']) {
+    for (const ext of ['jpeg', 'jpg', 'png', 'webp']) {
+      const arq = path.join(PUB, 'img', 'site', `${tipo}.${ext}`);
+      if (fs.existsSync(arq)) {
+        const cur = db.prepare("SELECT valor FROM config_site WHERE chave = ?").get(`${tipo}_url`);
+        if (!cur || !cur.valor) {
+          db.prepare(`INSERT INTO config_site (chave, valor) VALUES (?, ?)
+                      ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor`)
+            .run(`${tipo}_url`, `/img/site/${tipo}.${ext}`);
+        }
+        break;
+      }
     }
   }
 }
