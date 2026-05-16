@@ -27,7 +27,7 @@ document.querySelectorAll('.tab').forEach(t => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('ativo'));
     t.classList.add('ativo');
     const aba = t.dataset.tab;
-    ['reservas', 'socios', 'infracoes', 'audit'].forEach(a => {
+    ['reservas', 'socios', 'cadastros', 'infracoes', 'audit'].forEach(a => {
       document.getElementById('tab-' + a).style.display = a === aba ? '' : 'none';
     });
     if (aba === 'socios') carregarSocios();
