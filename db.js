@@ -1,7 +1,7 @@
 const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
 
 const DATA_DIR = path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -132,6 +132,33 @@ function migrar() {
   }
 }
 
+// Detecta arquivos pré-existentes em public/img/ e atualiza o banco
+// (idempotente — só seta quando ainda não há valor configurado).
+function detectarFotosPadrao() {
+  const PUB = path.join(__dirname, 'public');
+  const espacosDir = path.join(PUB, 'img', 'espacos');
+  if (fs.existsSync(espacosDir)) {
+    const arquivos = fs.readdirSync(espacosDir);
+    for (const arq of arquivos) {
+      const codigo = arq.split('.')[0].toUpperCase();
+      const url = '/img/espacos/' + arq;
+      const esp = db.prepare('SELECT id, foto_url FROM espacos WHERE codigo = ?').get(codigo);
+      if (esp && !esp.foto_url) {
+        db.prepare('UPDATE espacos SET foto_url = ? WHERE id = ?').run(url, esp.id);
+      }
+    }
+  }
+  // Logo padrão
+  const logo = path.join(PUB, 'img', 'site', 'logo.jpeg');
+  if (fs.existsSync(logo)) {
+    const cur = db.prepare("SELECT valor FROM config_site WHERE chave = 'logo_url'").get();
+    if (!cur || !cur.valor) {
+      db.prepare(`INSERT INTO config_site (chave, valor) VALUES ('logo_url', '/img/site/logo.jpeg')
+                  ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor`).run();
+    }
+  }
+}
+
 function seed() {
   const countSocios = db.prepare('SELECT COUNT(*) as n FROM socios').get().n;
   if (countSocios === 0) {
@@ -172,6 +199,7 @@ if (require.main === module && process.argv.includes('--seed')) {
   init();
   migrar();
   seed();
+  detectarFotosPadrao();
   console.log('✓ Banco inicializado e populado.');
   process.exit(0);
 }
@@ -179,5 +207,6 @@ if (require.main === module && process.argv.includes('--seed')) {
 init();
 migrar();
 seed();
+detectarFotosPadrao();
 
 module.exports = db;
