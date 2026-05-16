@@ -9,7 +9,7 @@
     "seed": "node db.js --seed"
   },
   "engines": {
-    "node": ">=18"
+    "node": "20.x"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
