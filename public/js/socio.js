@@ -2,6 +2,12 @@
 const ICONES = {
   churrasqueira: '🔥', salao: '🎉', campo: '⚽', quadra: '🏐'
 };
+const FOTOS = {
+  churrasqueira: '/img/churrasqueira.jpg',
+  salao: '/img/salao.jpg',
+  campo: '/img/campo.jpg',
+  quadra: '/img/quadra.jpg',
+};
 let usuario = null;
 let espacoSelecionado = null;
 let slotSelecionado = null;
@@ -92,10 +98,14 @@ async function consultarDisponibilidade() {
       if (e.conjugado_com) extra.push(`Conjugada com ${e.conjugado_com}`);
       html += `
         <div class="espaco-card">
-          <div class="icone">${ICONES[e.tipo]}</div>
-          <div class="nome">${e.nome}</div>
-          <div class="meta">${extra.join(' · ') || '&nbsp;'}</div>
-          <div class="slots">${slotsHtml}</div>
+          <div class="foto" style="background-image:url('${FOTOS[e.tipo]}')">
+            <div class="icone-overlay">${ICONES[e.tipo]}</div>
+          </div>
+          <div class="corpo">
+            <div class="nome">${e.nome}</div>
+            <div class="meta">${extra.join(' · ') || '&nbsp;'}</div>
+            <div class="slots">${slotsHtml}</div>
+          </div>
         </div>`;
     });
     html += `</div></div>`;
