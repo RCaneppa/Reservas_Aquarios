@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aquárius Clube de Campo — Reservas</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="logo">
+        <div class="logo-circle">🌴</div>
+        <h1>AQUÁRIUS</h1>
+        <p>Clube de Campo</p>
+      </div>
+
+      <div id="alerta"></div>
+
+      <form id="form-login">
+        <div class="form-grupo">
+          <label for="matricula">Matrícula do Sócio</label>
+          <input type="text" id="matricula" name="matricula" required autocomplete="username" placeholder="Ex: 1001">
+        </div>
+        <div class="form-grupo">
+          <label for="senha">Senha</label>
+          <input type="password" id="senha" name="senha" required autocomplete="current-password" placeholder="••••••">
+        </div>
+        <button type="submit" class="btn btn-block">Entrar</button>
+      </form>
+
+      <div class="demo-hint">
+        <b>Acessos demo:</b><br>
+        Sócio: <b>1001</b> / <b>123456</b><br>
+        Admin: <b>0001</b> / <b>admin123</b><br>
+        Inadimplente: <b>1004</b> / <b>123456</b>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('form-login');
+    const alerta = document.getElementById('alerta');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      alerta.innerHTML = '';
+      const dados = {
+        matricula: document.getElementById('matricula').value.trim(),
+        senha: document.getElementById('senha').value,
+      };
+      const r = await fetch('/api/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dados)
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        alerta.innerHTML = `<div class="alerta alerta-erro">${j.erro || 'Erro ao entrar.'}</div>`;
+        return;
+      }
+      window.location.href = j.socio.papel === 'admin' ? '/admin' : '/painel';
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+node_modules/
+data/
+*.db
+*.sqlite
+.env
+.DS_Store
+WhatsApp Image*.jpeg

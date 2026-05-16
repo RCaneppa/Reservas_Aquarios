@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aquárius — Painel da Diretoria</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="topo-conteudo">
+      <div class="topo-marca">
+        <div class="logo-mini">🌴</div>
+        <div>
+          <strong>AQUÁRIUS</strong>
+          <small>Painel Administrativo</small>
+        </div>
+      </div>
+      <div class="topo-user">
+        <span class="badge badge-amarelo">ADMIN</span>
+        <span>Olá, <span class="nome" id="user-nome">—</span></span>
+        <button class="btn btn-outline btn-sm" id="btn-sair">Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="kpi-grid" id="kpis"></div>
+
+    <div class="tabs">
+      <div class="tab ativo" data-tab="reservas">Reservas</div>
+      <div class="tab" data-tab="socios">Sócios</div>
+      <div class="tab" data-tab="infracoes">Infrações</div>
+      <div class="tab" data-tab="audit">Audit Log (LGPD)</div>
+    </div>
+
+    <section id="tab-reservas">
+      <div class="card">
+        <h2>📅 Todas as reservas</h2>
+        <div class="toolbar">
+          <label>Filtrar por data:</label>
+          <input type="date" id="filtro-data">
+          <select id="filtro-status">
+            <option value="">Todos status</option>
+            <option value="confirmada">Confirmadas</option>
+            <option value="cancelada">Canceladas</option>
+          </select>
+          <button class="btn btn-sm" id="btn-filtrar">Filtrar</button>
+          <button class="btn btn-outline btn-sm" id="btn-limpar">Limpar</button>
+        </div>
+        <div id="lista-reservas"></div>
+      </div>
+    </section>
+
+    <section id="tab-socios" style="display:none">
+      <div class="card">
+        <h2>👥 Sócios cadastrados</h2>
+        <div id="lista-socios"></div>
+      </div>
+    </section>
+
+    <section id="tab-infracoes" style="display:none">
+      <div class="card">
+        <h2>⚠️ Infrações de cancelamento</h2>
+        <p style="font-size:13px;color:var(--cinza)">
+          Política progressiva (reset após 1 ano sem infrações):
+          <b>1ª</b> 30% (R$ 27,60) · <b>2ª</b> 60% (R$ 55,20) · <b>3ª</b> 100% (R$ 92,00) — bloqueio de 30 dias.
+        </p>
+        <div id="lista-infracoes"></div>
+      </div>
+    </section>
+
+    <section id="tab-audit" style="display:none">
+      <div class="card">
+        <h2>🔒 Audit Log (rastreabilidade LGPD)</h2>
+        <div id="lista-audit"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="/js/admin.js"></script>
+</body>
+</html>

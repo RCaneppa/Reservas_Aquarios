@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aquárius — Painel do Sócio</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="topo-conteudo">
+      <div class="topo-marca">
+        <div class="logo-mini">🌴</div>
+        <div>
+          <strong>AQUÁRIUS</strong>
+          <small>Clube de Campo</small>
+        </div>
+      </div>
+      <div class="topo-user">
+        <span>Olá, <span class="nome" id="user-nome">—</span></span>
+        <button class="btn btn-outline btn-sm" id="btn-sair">Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div id="alerta-global"></div>
+
+    <div class="tabs">
+      <div class="tab ativo" data-tab="reservar">Nova Reserva</div>
+      <div class="tab" data-tab="minhas">Minhas Reservas</div>
+    </div>
+
+    <!-- TAB: Reservar -->
+    <section id="tab-reservar">
+      <div class="card">
+        <h2>📅 Escolha o dia</h2>
+        <div class="toolbar">
+          <input type="date" id="data-escolhida">
+          <button class="btn" id="btn-consultar">Consultar disponibilidade</button>
+        </div>
+        <p style="font-size:13px;color:var(--cinza);margin:8px 0 0">
+          Períodos: <b>Diurno</b> (09:00–17:00) · <b>Noturno</b> (18:00–02:00). Espaços por hora: 07:00–22:00.
+          O clube fica <b>fechado às segundas-feiras</b>.
+        </p>
+      </div>
+
+      <div id="disponibilidade"></div>
+    </section>
+
+    <!-- TAB: Minhas -->
+    <section id="tab-minhas" style="display:none">
+      <div class="card">
+        <h2>📋 Minhas Reservas</h2>
+        <div id="minhas-reservas"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal reserva -->
+  <div class="modal-bg" id="modal-reserva" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Confirmar Reserva</h2>
+        <button class="modal-fechar" onclick="fecharModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="resumo-reserva"></div>
+
+        <div class="termo">
+          <b>📜 Termo de Aceite</b><br>
+          Para confirmar a reserva é necessário aceitar os 3 artigos abaixo:
+          <div class="artigo">
+            <input type="checkbox" id="art1">
+            <label for="art1"><b>Artigo 1.</b> Aceito a política de cancelamento progressiva (30% / 60% / 100% sobre R$ 92,00), com bloqueio de 30 dias por infração, conforme regulamento do clube.</label>
+          </div>
+          <div class="artigo">
+            <input type="checkbox" id="art2">
+            <label for="art2"><b>Artigo 2.</b> Comprometo-me a respeitar o horário, devolver o espaço limpo e responder por danos causados durante o uso.</label>
+          </div>
+          <div class="artigo">
+            <input type="checkbox" id="art3">
+            <label for="art3"><b>Artigo 3.</b> Autorizo o tratamento dos meus dados pessoais para fins de gestão da reserva, em conformidade com a LGPD (Lei 13.709/2018).</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="fecharModal()">Cancelar</button>
+        <button class="btn btn-verde" id="btn-confirmar-reserva">Confirmar Reserva</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/socio.js"></script>
+</body>
+</html>
