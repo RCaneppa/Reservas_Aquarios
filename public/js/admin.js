@@ -179,8 +179,9 @@ async function carregarSocios() {
       ? `<span class="badge badge-vermelho">Até ${formatarData(s.bloqueado_ate)}</span>`
       : '<span class="badge badge-cinza">Livre</span>';
     const acoes = [];
+    acoes.push(`<button class="btn btn-sm" onclick="abrirEditarSocio(${s.id})">✏️ Editar</button>`);
     if (bloqueado) acoes.push(`<button class="btn btn-outline btn-sm" onclick="desbloquear(${s.id})">Desbloquear</button>`);
-    acoes.push(`<button class="btn btn-outline btn-sm" onclick="alternarAdimp(${s.id}, ${s.adimplente ? 0 : 1})">${s.adimplente ? 'Marcar inadimplente' : 'Marcar adimplente'}</button>`);
+    acoes.push(`<button class="btn btn-outline btn-sm" onclick="alternarAdimp(${s.id}, ${s.adimplente ? 0 : 1})">${s.adimplente ? 'Marcar inadimp.' : 'Marcar adimp.'}</button>`);
     html += `<tr>
       <td><b>${s.matricula}</b></td>
       <td>${s.nome}</td>
@@ -324,6 +325,66 @@ async function removerFotoEspaco(codigo) {
   if (!r.ok) { alert('Erro ao remover'); return; }
   carregarEspacos();
 }
+
+// ====== Editar sócio ======
+async function abrirEditarSocio(id) {
+  const r = await fetch(`/api/admin/socios/${id}`);
+  if (!r.ok) { alert('Erro ao carregar sócio'); return; }
+  const s = await r.json();
+  document.getElementById('edit-id').value = s.id;
+  document.getElementById('edit-matricula').value = s.matricula;
+  document.getElementById('edit-nome').value = s.nome || '';
+  document.getElementById('edit-cpf').value = s.cpf || '';
+  document.getElementById('edit-email').value = s.email || '';
+  document.getElementById('edit-telefone').value = s.telefone || '';
+  document.getElementById('edit-papel').value = s.papel;
+  document.getElementById('edit-adimplente').value = String(s.adimplente);
+  document.getElementById('edit-nova-senha').value = '';
+  document.getElementById('alerta-editar').innerHTML = '';
+  document.getElementById('alerta-reset-senha').innerHTML = '';
+  document.getElementById('modal-editar-socio').style.display = 'flex';
+}
+
+document.getElementById('btn-salvar-edicao').addEventListener('click', async () => {
+  const id = document.getElementById('edit-id').value;
+  const dados = {
+    nome: document.getElementById('edit-nome').value.trim(),
+    cpf: document.getElementById('edit-cpf').value.trim(),
+    email: document.getElementById('edit-email').value.trim(),
+    telefone: document.getElementById('edit-telefone').value.trim(),
+    papel: document.getElementById('edit-papel').value,
+    adimplente: Number(document.getElementById('edit-adimplente').value),
+  };
+  const r = await fetch(`/api/admin/socios/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dados)
+  });
+  const j = await r.json();
+  const alerta = document.getElementById('alerta-editar');
+  if (!r.ok) { alerta.innerHTML = `<div class="alerta alerta-erro">❌ ${j.erro}</div>`; return; }
+  alerta.innerHTML = `<div class="alerta alerta-sucesso">✅ Sócio atualizado!</div>`;
+  carregarSocios();
+  carregarKPIs();
+  setTimeout(() => document.getElementById('modal-editar-socio').style.display = 'none', 1200);
+});
+
+document.getElementById('btn-resetar-senha').addEventListener('click', async () => {
+  const id = document.getElementById('edit-id').value;
+  const novaSenha = document.getElementById('edit-nova-senha').value.trim();
+  if (!confirm('Confirmar reset de senha? O sócio precisará usar a nova senha no próximo login.')) return;
+  const r = await fetch(`/api/admin/socios/${id}/reset-senha`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nova_senha: novaSenha || null })
+  });
+  const j = await r.json();
+  const alerta = document.getElementById('alerta-reset-senha');
+  if (!r.ok) { alerta.innerHTML = `<div class="alerta alerta-erro">❌ ${j.erro}</div>`; return; }
+  alerta.innerHTML = `<div class="alerta alerta-sucesso">
+    ✅ Senha redefinida. <b>Nova senha:</b> <code>${j.senha_temporaria}</code><br>
+    <small>Anote e repasse ao sócio. A senha não será mostrada novamente.</small>
+  </div>`;
+  document.getElementById('edit-nova-senha').value = '';
+});
 
 // ====== Cadastro individual ======
 document.getElementById('form-novo-socio').addEventListener('submit', async (e) => {

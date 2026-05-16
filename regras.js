@@ -332,6 +332,67 @@ function criarSocio({ matricula, nome, cpf, email, telefone, senha, papel = 'soc
   };
 }
 
+function getSocioCompleto(id) {
+  return db.prepare(`
+    SELECT id, matricula, nome, cpf, email, telefone, papel, adimplente, bloqueado_ate, criado_em
+    FROM socios WHERE id = ?
+  `).get(id);
+}
+
+function atualizarSocio({ id, dados, adminId, ip = null }) {
+  const socio = db.prepare('SELECT * FROM socios WHERE id = ?').get(id);
+  if (!socio) return { ok: false, erro: 'Sócio não encontrado.' };
+
+  const nome = (dados.nome ?? socio.nome).trim();
+  if (!nome) return { ok: false, erro: 'Nome é obrigatório.' };
+
+  const email = dados.email !== undefined ? (String(dados.email).trim() || null) : socio.email;
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, erro: 'E-mail inválido.' };
+  }
+
+  const cpf = dados.cpf !== undefined ? (String(dados.cpf).trim() || null) : socio.cpf;
+  const telefone = dados.telefone !== undefined ? (String(dados.telefone).trim() || null) : socio.telefone;
+  const papel = dados.papel === 'admin' || dados.papel === 'socio' ? dados.papel : socio.papel;
+
+  // Adimplência e bloqueio só se vierem explicitamente
+  let adimplente = socio.adimplente;
+  if (dados.adimplente !== undefined) adimplente = Number(dados.adimplente) ? 1 : 0;
+
+  db.prepare(`
+    UPDATE socios SET nome = ?, cpf = ?, email = ?, telefone = ?, papel = ?, adimplente = ?
+    WHERE id = ?
+  `).run(nome, cpf, email, telefone, papel, adimplente, id);
+
+  db.prepare(`INSERT INTO audit_log (socio_id, acao, entidade, entidade_id, detalhes, ip) VALUES (?, 'editar_socio', 'socio', ?, ?, ?)`)
+    .run(adminId, id, JSON.stringify({
+      antes: { nome: socio.nome, email: socio.email, telefone: socio.telefone, papel: socio.papel, adimplente: socio.adimplente },
+      depois: { nome, email, telefone, papel, adimplente }
+    }), ip);
+
+  return { ok: true };
+}
+
+function resetarSenhaSocio({ id, novaSenha, adminId, ip = null }) {
+  const socio = db.prepare('SELECT * FROM socios WHERE id = ?').get(id);
+  if (!socio) return { ok: false, erro: 'Sócio não encontrado.' };
+
+  let senha = (novaSenha && String(novaSenha).trim()) ? String(novaSenha).trim() : null;
+  if (!senha) {
+    // Gera senha aleatória: matricula + 4 dígitos aleatórios
+    const r = crypto.randomBytes(2).toString('hex');
+    senha = `aqua${r}`;
+  }
+  if (senha.length < 6) return { ok: false, erro: 'Senha deve ter pelo menos 6 caracteres.' };
+
+  const hash = bcrypt.hashSync(senha, 10);
+  db.prepare('UPDATE socios SET senha_hash = ? WHERE id = ?').run(hash, id);
+  db.prepare(`INSERT INTO audit_log (socio_id, acao, entidade, entidade_id, ip) VALUES (?, 'reset_senha_admin', 'socio', ?, ?)`)
+    .run(adminId, id, ip);
+
+  return { ok: true, senha_temporaria: senha };
+}
+
 function importarSociosLote(linhas, { adminId = null, ip = null } = {}) {
   // linhas: array de objetos com chaves { matricula, nome, cpf, email, telefone, senha, papel, adimplente }
   const resumo = {
@@ -565,6 +626,9 @@ module.exports = {
   validarSocio,
   getSocio,
   criarSocio,
+  getSocioCompleto,
+  atualizarSocio,
+  resetarSenhaSocio,
   importarSociosLote,
   alterarSenha,
   gerarTokenReset,

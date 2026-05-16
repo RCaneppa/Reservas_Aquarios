@@ -366,6 +366,37 @@ app.post('/api/admin/socios/:id/desbloquear', exigeLogin, exigeAdmin, (req, res)
     .run(req.session.userId, Number(req.params.id), ip(req));
   res.json({ ok: true });
 });
+// Detalhe de um sócio
+app.get('/api/admin/socios/:id', exigeLogin, exigeAdmin, (req, res) => {
+  const s = regras.getSocioCompleto(Number(req.params.id));
+  if (!s) return res.status(404).json({ erro: 'Sócio não encontrado.' });
+  res.json(s);
+});
+
+// Editar sócio
+app.put('/api/admin/socios/:id', exigeLogin, exigeAdmin, (req, res) => {
+  const r = regras.atualizarSocio({
+    id: Number(req.params.id),
+    dados: req.body || {},
+    adminId: req.session.userId,
+    ip: ip(req),
+  });
+  if (!r.ok) return res.status(400).json(r);
+  res.json(r);
+});
+
+// Reset de senha pelo admin
+app.post('/api/admin/socios/:id/reset-senha', exigeLogin, exigeAdmin, (req, res) => {
+  const r = regras.resetarSenhaSocio({
+    id: Number(req.params.id),
+    novaSenha: req.body?.nova_senha,
+    adminId: req.session.userId,
+    ip: ip(req),
+  });
+  if (!r.ok) return res.status(400).json(r);
+  res.json(r);
+});
+
 // Cadastro individual
 app.post('/api/admin/socios', exigeLogin, exigeAdmin, (req, res) => {
   const r = regras.criarSocio({ ...req.body, adminId: req.session.userId, ip: ip(req) });
