@@ -336,6 +336,33 @@ app.get('/api/reservas/minhas', exigeLogin, (req, res) => {
   res.json(regras.listarReservasSocio(req.session.userId));
 });
 
+// ---------- Infrações do sócio ----------
+app.get('/api/socio/infracoes', exigeLogin, (req, res) => {
+  res.json(regras.listarInfracoesDoSocio(req.session.userId));
+});
+
+app.get('/api/socio/infracoes/nao-vistas', exigeLogin, (req, res) => {
+  res.json({ total: regras.contarInfracoesNaoVistas(req.session.userId) });
+});
+
+app.post('/api/socio/infracoes/visualizar', exigeLogin, (req, res) => {
+  regras.marcarInfracoesVisualizadas(req.session.userId);
+  res.json({ ok: true });
+});
+
+// Admin: aplicar infração manual
+app.post('/api/admin/socios/:id/infracao', exigeLogin, exigeAdmin, (req, res) => {
+  const r = regras.aplicarInfracaoManual({
+    socioId: Number(req.params.id),
+    motivo: req.body?.motivo,
+    nivel: req.body?.nivel ? Number(req.body.nivel) : undefined,
+    adminId: req.session.userId,
+    ip: ip(req),
+  });
+  if (!r.ok) return res.status(400).json(r);
+  res.json(r);
+});
+
 app.post('/api/reservas/:id/cancelar', exigeLogin, (req, res) => {
   const r = regras.cancelarReserva({
     reservaId: Number(req.params.id),

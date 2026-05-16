@@ -255,6 +255,46 @@
     </section>
   </div>
 
+  <!-- Modal: aplicar infração -->
+  <div class="modal-bg" id="modal-infracao" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>⚠️ Aplicar infração</h2>
+        <button class="modal-fechar" onclick="document.getElementById('modal-infracao').style.display='none'">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="alerta-infracao"></div>
+        <input type="hidden" id="inf-socio-id">
+        <p style="font-size:14px;margin-top:0">
+          Aplicando infração a <b id="inf-socio-nome"></b> (matrícula <span id="inf-socio-mat"></span>).
+        </p>
+        <div class="form-grupo">
+          <label>Nível</label>
+          <select id="inf-nivel">
+            <option value="auto">Automático (próxima na sequência)</option>
+            <option value="1">1ª infração — 30% (R$ 27,60) + 30 dias bloqueio</option>
+            <option value="2">2ª infração — 60% (R$ 55,20) + 30 dias bloqueio</option>
+            <option value="3">3ª infração — 100% (R$ 92,00) + 30 dias bloqueio</option>
+          </select>
+        </div>
+        <div class="form-grupo">
+          <label>Motivo *</label>
+          <textarea id="inf-motivo" rows="4" required maxlength="500"
+            style="width:100%;padding:10px 12px;border:1.5px solid var(--borda);border-radius:8px;font-family:inherit;font-size:14px"
+            placeholder="Descreva o motivo da infração (visível para o sócio)…"></textarea>
+        </div>
+        <div class="alerta alerta-aviso" style="font-size:13px">
+          Ao aplicar, o sócio será automaticamente bloqueado por 30 dias e receberá
+          um alerta no próximo login.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="document.getElementById('modal-infracao').style.display='none'">Cancelar</button>
+        <button class="btn btn-vermelho" id="btn-confirmar-infracao">Aplicar infração</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: editar sócio -->
   <div class="modal-bg" id="modal-editar-socio" style="display:none">
     <div class="modal">

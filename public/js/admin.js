@@ -182,6 +182,9 @@ async function carregarSocios() {
     acoes.push(`<button class="btn btn-sm" onclick="abrirEditarSocio(${s.id})">✏️ Editar</button>`);
     if (bloqueado) acoes.push(`<button class="btn btn-outline btn-sm" onclick="desbloquear(${s.id})">Desbloquear</button>`);
     acoes.push(`<button class="btn btn-outline btn-sm" onclick="alternarAdimp(${s.id}, ${s.adimplente ? 0 : 1})">${s.adimplente ? 'Marcar inadimp.' : 'Marcar adimp.'}</button>`);
+    if (s.papel !== 'admin') {
+      acoes.push(`<button class="btn btn-vermelho btn-sm" onclick="abrirInfracao(${s.id}, '${s.nome.replace(/'/g, "\\'")}', '${s.matricula}')">⚠️ Aplicar infração</button>`);
+    }
     html += `<tr>
       <td><b>${s.matricula}</b></td>
       <td>${s.nome}</td>
@@ -325,6 +328,51 @@ async function removerFotoEspaco(codigo) {
   if (!r.ok) { alert('Erro ao remover'); return; }
   carregarEspacos();
 }
+
+// ====== Aplicar infração ======
+function abrirInfracao(socioId, nome, matricula) {
+  document.getElementById('inf-socio-id').value = socioId;
+  document.getElementById('inf-socio-nome').textContent = nome;
+  document.getElementById('inf-socio-mat').textContent = matricula;
+  document.getElementById('inf-nivel').value = 'auto';
+  document.getElementById('inf-motivo').value = '';
+  document.getElementById('alerta-infracao').innerHTML = '';
+  document.getElementById('modal-infracao').style.display = 'flex';
+}
+
+document.getElementById('btn-confirmar-infracao').addEventListener('click', async () => {
+  const id = document.getElementById('inf-socio-id').value;
+  const nivelRaw = document.getElementById('inf-nivel').value;
+  const motivo = document.getElementById('inf-motivo').value.trim();
+  if (!motivo) {
+    document.getElementById('alerta-infracao').innerHTML = '<div class="alerta alerta-erro">Motivo é obrigatório.</div>';
+    return;
+  }
+  if (!confirm('Confirma a aplicação desta infração? O sócio será bloqueado por 30 dias e notificado.')) return;
+
+  const body = { motivo };
+  if (nivelRaw !== 'auto') body.nivel = Number(nivelRaw);
+
+  const r = await fetch(`/api/admin/socios/${id}/infracao`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const j = await r.json();
+  const alerta = document.getElementById('alerta-infracao');
+  if (!r.ok) {
+    alerta.innerHTML = `<div class="alerta alerta-erro">❌ ${j.erro || 'Erro'}</div>`;
+    return;
+  }
+  alerta.innerHTML = `<div class="alerta alerta-sucesso">
+    ✅ Infração registrada.<br>
+    <b>Nível:</b> ${j.nivel}ª (${j.percentual}%) — <b>Multa:</b> R$ ${j.valor.toFixed(2)}<br>
+    <b>Sócio bloqueado até:</b> ${new Date(j.bloqueado_ate + 'T12:00:00').toLocaleDateString('pt-BR')}
+  </div>`;
+  carregarSocios();
+  carregarKPIs();
+  if (typeof carregarInfracoes === 'function') carregarInfracoes();
+  setTimeout(() => document.getElementById('modal-infracao').style.display = 'none', 2500);
+});
 
 // ====== Editar sócio ======
 async function abrirEditarSocio(id) {

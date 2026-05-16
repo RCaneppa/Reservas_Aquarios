@@ -34,6 +34,30 @@ async function carregarUsuario() {
   } else if (usuario.bloqueado_ate) {
     mostrarAlertaGlobal(`Você está bloqueado para reservas até ${formatarData(usuario.bloqueado_ate)} por infração de cancelamento.`, 'aviso');
   }
+  verificarInfracoesNaoVistas();
+}
+
+async function verificarInfracoesNaoVistas() {
+  try {
+    const j = await fetch('/api/socio/infracoes/nao-vistas').then(r => r.json());
+    const badge = document.getElementById('badge-infracoes');
+    if (j.total > 0) {
+      badge.textContent = j.total;
+      badge.style.display = '';
+      // Alerta destacado no topo
+      const div = document.createElement('div');
+      div.className = 'alerta alerta-erro';
+      div.innerHTML = `⚠️ <b>Você tem ${j.total} ${j.total === 1 ? 'nova infração' : 'novas infrações'} para visualizar.</b>
+        <a href="#" id="link-ver-infracoes" style="margin-left:8px;font-weight:600">Ver detalhes</a>`;
+      document.getElementById('alerta-global').appendChild(div);
+      document.getElementById('link-ver-infracoes').addEventListener('click', (e) => {
+        e.preventDefault();
+        document.querySelector('.tab[data-tab="infracoes"]').click();
+      });
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch {}
 }
 
 function mostrarAlertaGlobal(msg, tipo = 'info') {
@@ -53,13 +77,60 @@ document.querySelectorAll('.tab').forEach(t => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('ativo'));
     t.classList.add('ativo');
     const aba = t.dataset.tab;
-    ['reservar', 'minhas', 'comunicados'].forEach(a => {
+    ['reservar', 'minhas', 'comunicados', 'infracoes'].forEach(a => {
       document.getElementById('tab-' + a).style.display = a === aba ? '' : 'none';
     });
     if (aba === 'minhas') carregarMinhasReservas();
     if (aba === 'comunicados') carregarComunicados();
+    if (aba === 'infracoes') carregarMinhasInfracoes();
   });
 });
+
+async function carregarMinhasInfracoes() {
+  const r = await fetch('/api/socio/infracoes');
+  const lista = await r.json();
+  const wrap = document.getElementById('lista-infracoes-socio');
+
+  // Marca como visualizadas (apaga o badge e o alerta)
+  fetch('/api/socio/infracoes/visualizar', { method: 'POST' }).then(() => {
+    document.getElementById('badge-infracoes').style.display = 'none';
+  });
+
+  if (!lista.length) {
+    wrap.innerHTML = `<div class="vazio"><div class="icone-grande">✅</div>Você não possui infrações registradas. Parabéns!</div>`;
+    return;
+  }
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  let html = `<table class="lista">
+    <thead><tr>
+      <th>Data</th><th>Nível</th><th>%</th><th>Multa</th><th>Motivo</th><th>Bloqueio</th><th>Status</th>
+    </tr></thead><tbody>`;
+  lista.forEach(i => {
+    const ativaBloqueio = i.bloqueado_ate && i.bloqueado_ate >= hoje;
+    const nivelBadge = i.nivel === 1 ? 'amarelo' : 'vermelho';
+    const statusBadge = ativaBloqueio
+      ? `<span class="badge badge-vermelho">Bloqueio ativo</span>`
+      : `<span class="badge badge-cinza">Encerrada</span>`;
+    const bloq = i.bloqueado_ate ? `Até ${formatarData(i.bloqueado_ate)}` : '—';
+    html += `<tr>
+      <td>${formatarDT(i.criada_em)}</td>
+      <td><span class="badge badge-${nivelBadge}">${i.nivel}ª</span></td>
+      <td>${i.percentual}%</td>
+      <td><b>R$ ${i.valor.toFixed(2)}</b></td>
+      <td style="max-width:280px">${(i.motivo || '—').replace(/</g, '&lt;')}</td>
+      <td>${bloq}</td>
+      <td>${statusBadge}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function formatarDT(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString('pt-BR');
+}
 
 async function carregarComunicados() {
   const r = await fetch('/api/comunicados');

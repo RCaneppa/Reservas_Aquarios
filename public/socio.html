@@ -36,6 +36,7 @@
       <div class="tab ativo" data-tab="reservar">Nova Reserva</div>
       <div class="tab" data-tab="minhas">Minhas Reservas</div>
       <div class="tab" data-tab="comunicados">📢 Comunicados <span id="badge-comunicados" class="badge badge-amarelo" style="display:none"></span></div>
+      <div class="tab" data-tab="infracoes">⚠️ Minhas Infrações <span id="badge-infracoes" class="badge badge-vermelho" style="display:none"></span></div>
     </div>
 
     <!-- TAB: Reservar -->
@@ -53,6 +54,18 @@
       </div>
 
       <div id="disponibilidade"></div>
+    </section>
+
+    <!-- TAB: Infrações -->
+    <section id="tab-infracoes" style="display:none">
+      <div class="card">
+        <h2>⚠️ Minhas Infrações</h2>
+        <p style="font-size:13px;color:var(--cinza);margin-top:0">
+          Política progressiva (reset após 1 ano sem infrações):
+          <b>1ª</b> 30% (R$ 27,60) · <b>2ª</b> 60% (R$ 55,20) · <b>3ª</b> 100% (R$ 92,00) — bloqueio de 30 dias.
+        </p>
+        <div id="lista-infracoes-socio"></div>
+      </div>
     </section>
 
     <!-- TAB: Comunicados -->

@@ -130,6 +130,16 @@ function migrar() {
   if (!colsEspacos.find(c => c.name === 'foto_url')) {
     db.exec("ALTER TABLE espacos ADD COLUMN foto_url TEXT");
   }
+  const colsInfra = db.prepare("PRAGMA table_info(infracoes)").all();
+  if (!colsInfra.find(c => c.name === 'visualizada_em')) {
+    db.exec("ALTER TABLE infracoes ADD COLUMN visualizada_em TEXT");
+  }
+  if (!colsInfra.find(c => c.name === 'aplicada_por')) {
+    db.exec("ALTER TABLE infracoes ADD COLUMN aplicada_por INTEGER");
+  }
+  if (!colsInfra.find(c => c.name === 'bloqueado_ate')) {
+    db.exec("ALTER TABLE infracoes ADD COLUMN bloqueado_ate TEXT");
+  }
 }
 
 // Detecta arquivos pré-existentes em public/img/ e atualiza o banco

@@ -197,6 +197,71 @@ function calcularNivelInfracao(socioId) {
   return { nivel: 3, percentual: 100, valor: VALOR_BASE_INFRACAO };
 }
 
+// Aplica infração manual (admin). Se nivel não informado, calcula automaticamente.
+function aplicarInfracaoManual({ socioId, motivo, nivel, adminId, ip = null }) {
+  const socio = getSocio(socioId);
+  if (!socio) return { ok: false, erro: 'Sócio não encontrado.' };
+  motivo = (motivo || '').trim();
+  if (!motivo) return { ok: false, erro: 'Motivo da infração é obrigatório.' };
+
+  let calc;
+  if (nivel === 1 || nivel === 2 || nivel === 3) {
+    const pct = nivel === 1 ? 30 : nivel === 2 ? 60 : 100;
+    calc = { nivel, percentual: pct, valor: +(VALOR_BASE_INFRACAO * pct / 100).toFixed(2) };
+  } else {
+    calc = calcularNivelInfracao(socioId);
+  }
+
+  const dataBloq = new Date();
+  dataBloq.setDate(dataBloq.getDate() + 30);
+  const bloqIso = dataBloq.toISOString().slice(0, 10);
+
+  const info = db.prepare(`
+    INSERT INTO infracoes (socio_id, reserva_id, nivel, percentual, valor, motivo, aplicada_por, bloqueado_ate)
+    VALUES (?, NULL, ?, ?, ?, ?, ?, ?)
+  `).run(socioId, calc.nivel, calc.percentual, calc.valor, motivo, adminId, bloqIso);
+
+  // Aplica/estende bloqueio se for posterior ao atual
+  const atualBloq = socio.bloqueado_ate;
+  if (!atualBloq || bloqIso > atualBloq) {
+    db.prepare('UPDATE socios SET bloqueado_ate = ? WHERE id = ?').run(bloqIso, socioId);
+  }
+
+  db.prepare(`INSERT INTO audit_log (socio_id, acao, entidade, entidade_id, detalhes, ip) VALUES (?, 'aplicar_infracao_manual', 'infracao', ?, ?, ?)`)
+    .run(adminId, info.lastInsertRowid, JSON.stringify({ socio_id: socioId, nivel: calc.nivel, motivo, bloqueado_ate: bloqIso }), ip);
+
+  return {
+    ok: true,
+    infracao_id: info.lastInsertRowid,
+    nivel: calc.nivel, percentual: calc.percentual, valor: calc.valor,
+    bloqueado_ate: bloqIso,
+  };
+}
+
+function listarInfracoesDoSocio(socioId) {
+  return db.prepare(`
+    SELECT i.*,
+           r.data as reserva_data, e.nome as espaco_nome,
+           adm.nome as aplicada_por_nome
+    FROM infracoes i
+    LEFT JOIN reservas r ON r.id = i.reserva_id
+    LEFT JOIN espacos e ON e.id = r.espaco_id
+    LEFT JOIN socios adm ON adm.id = i.aplicada_por
+    WHERE i.socio_id = ?
+    ORDER BY i.criada_em DESC
+  `).all(socioId);
+}
+
+function contarInfracoesNaoVistas(socioId) {
+  return db.prepare(`SELECT COUNT(*) as n FROM infracoes WHERE socio_id = ? AND visualizada_em IS NULL`)
+    .get(socioId).n;
+}
+
+function marcarInfracoesVisualizadas(socioId) {
+  db.prepare(`UPDATE infracoes SET visualizada_em = CURRENT_TIMESTAMP WHERE socio_id = ? AND visualizada_em IS NULL`)
+    .run(socioId);
+}
+
 function cancelarReserva({ reservaId, socioId, ip, porAdmin = false }) {
   const reserva = db.prepare('SELECT * FROM reservas WHERE id = ?').get(reservaId);
   if (!reserva) return { ok: false, erro: 'Reserva não encontrada.' };
@@ -213,9 +278,9 @@ function cancelarReserva({ reservaId, socioId, ip, porAdmin = false }) {
     const bloqIso = dataBloq.toISOString().slice(0, 10);
 
     db.prepare(`
-      INSERT INTO infracoes (socio_id, reserva_id, nivel, percentual, valor, motivo)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(reserva.socio_id, reserva.id, calc.nivel, calc.percentual, calc.valor, 'Cancelamento fora do prazo');
+      INSERT INTO infracoes (socio_id, reserva_id, nivel, percentual, valor, motivo, bloqueado_ate)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(reserva.socio_id, reserva.id, calc.nivel, calc.percentual, calc.valor, 'Cancelamento fora do prazo', bloqIso);
 
     db.prepare('UPDATE socios SET bloqueado_ate = ? WHERE id = ?').run(bloqIso, reserva.socio_id);
     infracao = { ...calc, bloqueado_ate: bloqIso };
@@ -620,6 +685,10 @@ module.exports = {
   listarReservasSocio,
   listarTodasReservas,
   listarInfracoes,
+  aplicarInfracaoManual,
+  listarInfracoesDoSocio,
+  contarInfracoesNaoVistas,
+  marcarInfracoesVisualizadas,
   listarAuditLog,
   listarSocios,
   getEspacoPorCodigo,
