@@ -29,11 +29,40 @@
         <button type="submit" class="btn btn-block">Entrar</button>
       </form>
 
+      <div style="text-align:center;margin-top:14px">
+        <a href="#" id="link-forgot" style="font-size:13px">Esqueci minha senha</a>
+      </div>
+
       <div class="demo-hint">
         <b>Acessos demo:</b><br>
         Sócio: <b>1001</b> / <b>123456</b><br>
         Admin: <b>0001</b> / <b>admin123</b><br>
         Inadimplente: <b>1004</b> / <b>123456</b>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: esqueci minha senha -->
+  <div class="modal-bg" id="modal-forgot" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>🔐 Recuperar senha</h2>
+        <button class="modal-fechar" onclick="document.getElementById('modal-forgot').style.display='none'">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:14px;margin-top:0">
+          Informe sua <b>matrícula</b> ou <b>e-mail cadastrado</b> e enviaremos
+          um link para criar uma nova senha.
+        </p>
+        <div id="alerta-forgot"></div>
+        <div class="form-grupo">
+          <label>Matrícula ou e-mail</label>
+          <input type="text" id="forgot-identificador" placeholder="1001 ou seu@email.com">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="document.getElementById('modal-forgot').style.display='none'">Cancelar</button>
+        <button class="btn" id="btn-forgot-enviar">Enviar link</button>
       </div>
     </div>
   </div>
@@ -58,6 +87,36 @@
         return;
       }
       window.location.href = j.socio.papel === 'admin' ? '/admin' : '/painel';
+    });
+
+    document.getElementById('link-forgot').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('alerta-forgot').innerHTML = '';
+      document.getElementById('forgot-identificador').value = '';
+      document.getElementById('modal-forgot').style.display = 'flex';
+    });
+
+    document.getElementById('btn-forgot-enviar').addEventListener('click', async () => {
+      const ident = document.getElementById('forgot-identificador').value.trim();
+      if (!ident) return;
+      const r = await fetch('/api/recuperar-senha', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identificador: ident })
+      });
+      const j = await r.json();
+      const wrap = document.getElementById('alerta-forgot');
+      if (!r.ok) {
+        wrap.innerHTML = `<div class="alerta alerta-erro">${j.erro || 'Erro'}</div>`;
+        return;
+      }
+      let html = `<div class="alerta alerta-sucesso">✅ ${j.mensagem}</div>`;
+      if (j.demo && j.demo_link) {
+        html += `<div class="alerta alerta-aviso" style="font-size:12px">
+          🧪 <b>Modo demo (SMTP não configurado):</b> use o link abaixo para testar:
+          <br><a href="${j.demo_link}" target="_blank" style="word-break:break-all">${j.demo_link}</a>
+        </div>`;
+      }
+      wrap.innerHTML = html;
     });
   </script>
 </body>

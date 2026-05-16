@@ -81,6 +81,17 @@ function init() {
       criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS senha_reset_tokens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      socio_id INTEGER NOT NULL,
+      token TEXT UNIQUE NOT NULL,
+      expira_em TEXT NOT NULL,
+      usado INTEGER NOT NULL DEFAULT 0,
+      criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(socio_id) REFERENCES socios(id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_reset_token ON senha_reset_tokens(token);
+
     CREATE TABLE IF NOT EXISTS termo_aceite (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       socio_id INTEGER NOT NULL,

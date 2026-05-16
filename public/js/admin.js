@@ -396,6 +396,88 @@ btnImportar.addEventListener('click', async () => {
   btnImportar.disabled = true;
 });
 
+// ====== Adimplência: carga delta ======
+const adimpArquivo = document.getElementById('adimp-arquivo');
+const btnAdimp = document.getElementById('btn-adimp-importar');
+const adimpNome = document.getElementById('adimp-nome');
+
+adimpArquivo.addEventListener('change', () => {
+  const f = adimpArquivo.files[0];
+  if (!f) { adimpNome.textContent = 'Nenhum arquivo selecionado'; btnAdimp.disabled = true; return; }
+  adimpNome.textContent = `${f.name} (${(f.size / 1024).toFixed(1)} KB)`;
+  btnAdimp.disabled = false;
+});
+
+btnAdimp.addEventListener('click', async () => {
+  const f = adimpArquivo.files[0];
+  if (!f) return;
+  const fd = new FormData();
+  fd.append('arquivo', f);
+  btnAdimp.disabled = true;
+  btnAdimp.textContent = 'Importando…';
+
+  const r = await fetch('/api/admin/adimplencia/importar', { method: 'POST', body: fd });
+  const j = await r.json();
+
+  btnAdimp.disabled = false;
+  btnAdimp.textContent = 'Importar';
+
+  const wrap = document.getElementById('adimp-resultado');
+  if (!r.ok) {
+    wrap.innerHTML = `<div class="alerta alerta-erro">❌ ${j.erro || 'Erro'}</div>`;
+    return;
+  }
+
+  let html = `
+    <div class="import-resumo">
+      <div class="bloco azul"><div class="num">${j.total}</div><div class="rot">Linhas lidas</div></div>
+      <div class="bloco verde"><div class="num">${j.atualizados}</div><div class="rot">Atualizados</div></div>
+      <div class="bloco azul"><div class="num">${j.inalterados}</div><div class="rot">Inalterados</div></div>
+      <div class="bloco vermelho"><div class="num">${j.nao_encontrados}</div><div class="rot">Não encontrados</div></div>
+    </div>
+  `;
+
+  if (j.detalhes && j.detalhes.length) {
+    html += `<div class="import-tabela"><table class="lista">
+      <thead><tr><th>Linha</th><th>Matrícula</th><th>Nome</th><th>Status</th><th>Resultado</th></tr></thead><tbody>`;
+    j.detalhes.forEach(d => {
+      let res = '';
+      if (d.status === 'atualizado') {
+        const de = d.de ? 'Em dia' : 'Inadimplente';
+        const para = d.para ? 'Em dia' : 'Inadimplente';
+        const corBadge = d.para ? 'badge-verde' : 'badge-vermelho';
+        res = `${de} → <span class="badge ${corBadge}">${para}</span>`;
+      } else if (d.status === 'inalterado') {
+        res = `<span class="badge badge-cinza">Sem alteração</span>`;
+      } else {
+        res = `<span class="badge badge-vermelho">Não encontrado</span>`;
+      }
+      html += `<tr>
+        <td>${d.linha}</td>
+        <td><b>${d.matricula}</b></td>
+        <td>${d.nome || '—'}</td>
+        <td>${d.status}</td>
+        <td>${res}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+  }
+  if (j.erros && j.erros.length) {
+    html += `<h3>⚠️ Linhas com erro</h3><div class="import-tabela"><table class="lista">
+      <thead><tr><th>Linha</th><th>Matrícula</th><th>Motivo</th></tr></thead><tbody>`;
+    j.erros.forEach(e => {
+      html += `<tr><td>${e.linha}</td><td>${e.matricula || '—'}</td><td>${e.erro}</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+  }
+
+  wrap.innerHTML = html;
+  carregarKPIs();
+  adimpArquivo.value = '';
+  adimpNome.textContent = 'Nenhum arquivo selecionado';
+  btnAdimp.disabled = true;
+});
+
 document.getElementById('btn-sair').addEventListener('click', async () => {
   await fetch('/api/logout', { method: 'POST' });
   window.location.href = '/';

@@ -18,6 +18,7 @@
       </div>
       <div class="topo-user">
         <span>Olá, <span class="nome" id="user-nome">—</span></span>
+        <button class="btn btn-outline btn-sm" id="btn-alterar-senha">🔐 Alterar senha</button>
         <button class="btn btn-outline btn-sm" id="btn-sair">Sair</button>
       </div>
     </div>
@@ -87,6 +88,35 @@
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="fecharModal()">Cancelar</button>
         <button class="btn btn-verde" id="btn-confirmar-reserva">Confirmar Reserva</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: alterar senha -->
+  <div class="modal-bg" id="modal-senha" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>🔐 Alterar senha</h2>
+        <button class="modal-fechar" onclick="document.getElementById('modal-senha').style.display='none'">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="alerta-senha"></div>
+        <div class="form-grupo">
+          <label>Senha atual</label>
+          <input type="password" id="senha-atual" autocomplete="current-password">
+        </div>
+        <div class="form-grupo">
+          <label>Nova senha (mín. 6 caracteres)</label>
+          <input type="password" id="nova-senha" autocomplete="new-password">
+        </div>
+        <div class="form-grupo">
+          <label>Confirmar nova senha</label>
+          <input type="password" id="conf-senha" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="document.getElementById('modal-senha').style.display='none'">Cancelar</button>
+        <button class="btn btn-verde" id="btn-confirmar-senha">Alterar</button>
       </div>
     </div>
   </div>

@@ -239,6 +239,40 @@ async function cancelar(id) {
   carregarUsuario();
 }
 
+// ====== Alterar senha ======
+document.getElementById('btn-alterar-senha').addEventListener('click', () => {
+  ['senha-atual', 'nova-senha', 'conf-senha'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('alerta-senha').innerHTML = '';
+  document.getElementById('modal-senha').style.display = 'flex';
+});
+
+document.getElementById('btn-confirmar-senha').addEventListener('click', async () => {
+  const atual = document.getElementById('senha-atual').value;
+  const nova = document.getElementById('nova-senha').value;
+  const conf = document.getElementById('conf-senha').value;
+  const alerta = document.getElementById('alerta-senha');
+  if (!atual || !nova || !conf) {
+    alerta.innerHTML = '<div class="alerta alerta-erro">Preencha todos os campos.</div>'; return;
+  }
+  if (nova !== conf) {
+    alerta.innerHTML = '<div class="alerta alerta-erro">As novas senhas não conferem.</div>'; return;
+  }
+  if (nova.length < 6) {
+    alerta.innerHTML = '<div class="alerta alerta-erro">Nova senha deve ter pelo menos 6 caracteres.</div>'; return;
+  }
+  const r = await fetch('/api/socio/alterar-senha', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ senha_atual: atual, nova_senha: nova })
+  });
+  const j = await r.json();
+  if (!r.ok) {
+    alerta.innerHTML = `<div class="alerta alerta-erro">${j.erro || 'Erro'}</div>`;
+    return;
+  }
+  alerta.innerHTML = '<div class="alerta alerta-sucesso">✅ Senha alterada com sucesso!</div>';
+  setTimeout(() => document.getElementById('modal-senha').style.display = 'none', 1500);
+});
+
 // ====== Sair ======
 document.getElementById('btn-sair').addEventListener('click', async () => {
   await fetch('/api/logout', { method: 'POST' });

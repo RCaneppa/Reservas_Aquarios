@@ -1,6 +1,7 @@
 // Regras de negócio do sistema de reservas Aquárius.
 const db = require('./db');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const VALOR_BASE_INFRACAO = 92.00; // 100% = R$ 92,00
 const PERIODOS = ['diurno', 'noturno'];
@@ -371,6 +372,117 @@ function importarSociosLote(linhas, { adminId = null, ip = null } = {}) {
   return resumo;
 }
 
+// ===== Senha: alterar / recuperar =====
+const MIN_SENHA = 6;
+
+function alterarSenha({ socioId, senhaAtual, novaSenha, ip = null }) {
+  const socio = getSocio(socioId);
+  if (!socio) return { ok: false, erro: 'Sócio não encontrado.' };
+  if (!bcrypt.compareSync(senhaAtual || '', socio.senha_hash)) {
+    return { ok: false, erro: 'Senha atual incorreta.' };
+  }
+  if (!novaSenha || String(novaSenha).length < MIN_SENHA) {
+    return { ok: false, erro: `Nova senha deve ter pelo menos ${MIN_SENHA} caracteres.` };
+  }
+  if (senhaAtual === novaSenha) {
+    return { ok: false, erro: 'A nova senha deve ser diferente da atual.' };
+  }
+  const hash = bcrypt.hashSync(novaSenha, 10);
+  db.prepare('UPDATE socios SET senha_hash = ? WHERE id = ?').run(hash, socioId);
+  db.prepare(`INSERT INTO audit_log (socio_id, acao, ip) VALUES (?, 'alterar_senha', ?)`).run(socioId, ip);
+  return { ok: true };
+}
+
+function gerarTokenReset({ identificador, ip = null }) {
+  // identificador pode ser matrícula OU e-mail
+  if (!identificador) return { ok: false, erro: 'Informe matrícula ou e-mail.' };
+  const ident = String(identificador).trim();
+  const socio = db.prepare(`
+    SELECT * FROM socios WHERE matricula = ? OR LOWER(email) = LOWER(?)
+  `).get(ident, ident);
+
+  // Por segurança, sempre retornar sucesso — sem revelar se o registro existe.
+  if (!socio) return { ok: true, socio: null };
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const expira = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1h
+  db.prepare(`
+    INSERT INTO senha_reset_tokens (socio_id, token, expira_em) VALUES (?, ?, ?)
+  `).run(socio.id, token, expira);
+  db.prepare(`INSERT INTO audit_log (socio_id, acao, ip) VALUES (?, 'solicitar_reset_senha', ?)`).run(socio.id, ip);
+  return { ok: true, socio, token, expira };
+}
+
+function consumirTokenReset({ token, novaSenha, ip = null }) {
+  if (!token) return { ok: false, erro: 'Token inválido.' };
+  const reg = db.prepare('SELECT * FROM senha_reset_tokens WHERE token = ?').get(token);
+  if (!reg) return { ok: false, erro: 'Token inválido ou já utilizado.' };
+  if (reg.usado) return { ok: false, erro: 'Token já utilizado. Solicite novo link.' };
+  if (new Date(reg.expira_em) < new Date()) {
+    return { ok: false, erro: 'Token expirado. Solicite novo link.' };
+  }
+  if (!novaSenha || String(novaSenha).length < MIN_SENHA) {
+    return { ok: false, erro: `Nova senha deve ter pelo menos ${MIN_SENHA} caracteres.` };
+  }
+  const hash = bcrypt.hashSync(novaSenha, 10);
+  const tx = db.transaction(() => {
+    db.prepare('UPDATE socios SET senha_hash = ? WHERE id = ?').run(hash, reg.socio_id);
+    db.prepare('UPDATE senha_reset_tokens SET usado = 1 WHERE id = ?').run(reg.id);
+    db.prepare(`INSERT INTO audit_log (socio_id, acao, ip) VALUES (?, 'redefinir_senha', ?)`).run(reg.socio_id, ip);
+  });
+  tx();
+  return { ok: true, socio_id: reg.socio_id };
+}
+
+// ===== Carga delta de adimplência =====
+function importarAdimplenciaLote(linhas, { adminId = null, ip = null } = {}) {
+  const resumo = {
+    total: linhas.length,
+    atualizados: 0,
+    inalterados: 0,
+    nao_encontrados: 0,
+    erros: [],
+    detalhes: [],
+  };
+  const tx = db.transaction((items) => {
+    for (let i = 0; i < items.length; i++) {
+      const raw = items[i];
+      const matricula = normalizarMatricula(raw.matricula);
+      const linhaNum = i + 2;
+      if (!matricula) {
+        resumo.erros.push({ linha: linhaNum, erro: 'matricula ausente' });
+        continue;
+      }
+      const val = String(raw.adimplente ?? raw.status ?? '').trim().toLowerCase();
+      let novo;
+      if (['1', 'sim', 's', 'true', 'em dia', 'adimplente', 'ok'].includes(val)) novo = 1;
+      else if (['0', 'nao', 'não', 'n', 'false', 'inadimplente', 'pendente'].includes(val)) novo = 0;
+      else {
+        resumo.erros.push({ linha: linhaNum, matricula, erro: `valor de adimplência inválido: "${raw.adimplente ?? raw.status}"` });
+        continue;
+      }
+      const socio = db.prepare('SELECT id, adimplente, nome FROM socios WHERE matricula = ?').get(matricula);
+      if (!socio) {
+        resumo.nao_encontrados++;
+        resumo.detalhes.push({ linha: linhaNum, matricula, status: 'não encontrado' });
+        continue;
+      }
+      if (socio.adimplente === novo) {
+        resumo.inalterados++;
+        resumo.detalhes.push({ linha: linhaNum, matricula, nome: socio.nome, status: 'inalterado', adimplente: novo });
+        continue;
+      }
+      db.prepare('UPDATE socios SET adimplente = ? WHERE id = ?').run(novo, socio.id);
+      db.prepare(`INSERT INTO audit_log (socio_id, acao, entidade, entidade_id, detalhes, ip) VALUES (?, 'importar_adimplencia', 'socio', ?, ?, ?)`)
+        .run(adminId, socio.id, JSON.stringify({ matricula, de: socio.adimplente, para: novo }), ip);
+      resumo.atualizados++;
+      resumo.detalhes.push({ linha: linhaNum, matricula, nome: socio.nome, status: 'atualizado', de: socio.adimplente, para: novo });
+    }
+  });
+  tx(linhas);
+  return resumo;
+}
+
 module.exports = {
   VALOR_BASE_INFRACAO,
   hoje,
@@ -387,4 +499,8 @@ module.exports = {
   getSocio,
   criarSocio,
   importarSociosLote,
+  alterarSenha,
+  gerarTokenReset,
+  consumirTokenReset,
+  importarAdimplenciaLote,
 };

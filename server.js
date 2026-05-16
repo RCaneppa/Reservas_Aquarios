@@ -6,8 +6,56 @@ const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const XLSX = require('xlsx');
+const nodemailer = require('nodemailer');
 const db = require('./db');
 const regras = require('./regras');
+
+// ===== E-mail (Nodemailer) =====
+// Configurável via env: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM
+// Se nenhuma config existir, entra em "modo demo": o link é exibido no console
+// e retornado na resposta da API (apenas para apresentação/protótipo).
+const SMTP_CONFIGURADO = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+let mailer = null;
+if (SMTP_CONFIGURADO) {
+  mailer = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: String(process.env.SMTP_SECURE || '').toLowerCase() === 'true',
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  });
+  console.log('📧 SMTP configurado:', process.env.SMTP_HOST);
+} else {
+  console.log('📧 SMTP não configurado — modo demo (link aparece em console e na resposta).');
+}
+
+async function enviarEmailReset({ para, nome, link }) {
+  if (!SMTP_CONFIGURADO) {
+    console.log(`[demo] link de reset para ${para}: ${link}`);
+    return { enviado: false, demo: true };
+  }
+  await mailer.sendMail({
+    from: process.env.MAIL_FROM || '"Aquárius Clube" <no-reply@aquarius.com.br>',
+    to: para,
+    subject: 'Recuperação de senha — Aquárius Clube',
+    text: `Olá ${nome},\n\nUma redefinição de senha foi solicitada para sua conta no Aquárius Clube.\nAcesse o link abaixo (válido por 1 hora) para criar uma nova senha:\n\n${link}\n\nSe você não solicitou, ignore este e-mail.`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:20px;color:#1f2937">
+        <h2 style="color:#1E5BBA">🌴 Aquárius Clube de Campo</h2>
+        <p>Olá <b>${nome}</b>,</p>
+        <p>Recebemos uma solicitação de redefinição da sua senha. Clique no botão abaixo para criar uma nova senha:</p>
+        <p style="text-align:center;margin:24px 0">
+          <a href="${link}" style="background:#1E5BBA;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Redefinir minha senha</a>
+        </p>
+        <p style="color:#6b7280;font-size:13px">O link expira em 1 hora. Se você não solicitou, ignore este e-mail.</p>
+      </div>`,
+  });
+  return { enviado: true };
+}
+
+function baseUrl(req) {
+  if (process.env.BASE_URL) return process.env.BASE_URL.replace(/\/$/, '');
+  return `${req.protocol}://${req.get('host')}`;
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -85,6 +133,49 @@ app.post('/api/login', (req, res) => {
 
 app.post('/api/logout', (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
+});
+
+// ---------- Senha ----------
+app.post('/api/socio/alterar-senha', exigeLogin, (req, res) => {
+  const { senha_atual, nova_senha } = req.body || {};
+  const r = regras.alterarSenha({
+    socioId: req.session.userId,
+    senhaAtual: senha_atual, novaSenha: nova_senha, ip: ip(req)
+  });
+  if (!r.ok) return res.status(400).json(r);
+  res.json(r);
+});
+
+app.post('/api/recuperar-senha', async (req, res) => {
+  const { identificador } = req.body || {};
+  const r = regras.gerarTokenReset({ identificador, ip: ip(req) });
+  // Sempre retorna sucesso para não revelar se o e-mail existe.
+  if (!r.ok) return res.status(400).json(r);
+
+  let demoLink = null;
+  if (r.socio && r.token) {
+    const link = `${baseUrl(req)}/reset.html?token=${r.token}`;
+    try {
+      const envio = await enviarEmailReset({ para: r.socio.email, nome: r.socio.nome, link });
+      if (envio.demo) demoLink = link;
+    } catch (e) {
+      console.error('Falha ao enviar e-mail:', e.message);
+      demoLink = link; // em caso de erro de envio, ainda retorna em modo demo
+    }
+  }
+  res.json({
+    ok: true,
+    mensagem: 'Se o cadastro existir, enviaremos um link para redefinição da senha.',
+    demo: !SMTP_CONFIGURADO,
+    demo_link: demoLink, // só preenchido em modo demo / fallback
+  });
+});
+
+app.post('/api/redefinir-senha', (req, res) => {
+  const { token, nova_senha } = req.body || {};
+  const r = regras.consumirTokenReset({ token, novaSenha: nova_senha, ip: ip(req) });
+  if (!r.ok) return res.status(400).json(r);
+  res.json(r);
 });
 
 app.get('/api/me', (req, res) => {
@@ -248,6 +339,54 @@ app.post('/api/admin/socios/importar', exigeLogin, exigeAdmin, upload.single('ar
   });
 
   const resumo = regras.importarSociosLote(linhasNorm, { adminId: req.session.userId, ip: ip(req) });
+  res.json(resumo);
+});
+
+// Template e importação delta de adimplência
+app.get('/api/admin/adimplencia/template', exigeLogin, exigeAdmin, (_req, res) => {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['matricula', 'adimplente'],
+    ['1001', 1],
+    ['1002', 1],
+    ['1003', 0],
+    ['1004', 0],
+  ]);
+  ws['!cols'] = [{ wch: 14 }, { wch: 14 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'adimplencia');
+  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+  res.setHeader('Content-Disposition', 'attachment; filename="modelo-adimplencia.xlsx"');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.send(buf);
+});
+
+app.post('/api/admin/adimplencia/importar', exigeLogin, exigeAdmin, upload.single('arquivo'), (req, res) => {
+  if (!req.file) return res.status(400).json({ erro: 'Envie um arquivo .xlsx no campo "arquivo".' });
+  let linhas;
+  try {
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    linhas = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+  } catch (e) {
+    return res.status(400).json({ erro: 'Não foi possível ler o arquivo.' });
+  }
+  if (!linhas.length) return res.status(400).json({ erro: 'Planilha vazia ou sem cabeçalho.' });
+
+  const norm = (s) => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const ALIAS = {
+    matricula: 'matricula', 'matrícula': 'matricula',
+    adimplente: 'adimplente', 'status': 'adimplente', 'situacao': 'adimplente', 'situação': 'adimplente',
+  };
+  const linhasNorm = linhas.map(obj => {
+    const out = {};
+    for (const k of Object.keys(obj)) {
+      const nk = ALIAS[norm(k)];
+      if (nk) out[nk] = obj[k];
+    }
+    return out;
+  });
+
+  const resumo = regras.importarAdimplenciaLote(linhasNorm, { adminId: req.session.userId, ip: ip(req) });
   res.json(resumo);
 });
 

@@ -127,6 +127,25 @@
         </div>
         <div id="resultado-import"></div>
       </div>
+
+      <div class="card">
+        <h2>🔄 Atualização delta de adimplência (.xlsx)</h2>
+        <p style="font-size:13px;color:var(--cinza);margin-top:0">
+          Carga <b>delta</b>: atualiza somente os sócios listados na planilha. Quem não aparecer no arquivo permanece como está.
+          Colunas obrigatórias: <b>matricula</b> e <b>adimplente</b> (1 = em dia, 0 = inadimplente).
+          Aceitam-se também: "sim/não", "ok/pendente", "em dia/inadimplente".
+        </p>
+        <div class="toolbar">
+          <a href="/api/admin/adimplencia/template" class="btn btn-outline">⬇️ Baixar modelo</a>
+          <label class="btn btn-amarelo" style="margin:0;cursor:pointer">
+            📤 Selecionar planilha
+            <input type="file" id="adimp-arquivo" accept=".xlsx,.xls" style="display:none">
+          </label>
+          <span id="adimp-nome" style="font-size:13px;color:var(--cinza)">Nenhum arquivo selecionado</span>
+          <button class="btn btn-verde" id="btn-adimp-importar" disabled>Importar</button>
+        </div>
+        <div id="adimp-resultado"></div>
+      </div>
     </section>
 
     <section id="tab-espacos" style="display:none">

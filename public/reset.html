@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aquárius — Redefinir senha</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="logo">
+        <div class="logo-circle">🔐</div>
+        <h1>AQUÁRIUS</h1>
+        <p>Nova senha</p>
+      </div>
+
+      <div id="alerta"></div>
+
+      <form id="form-reset">
+        <div class="form-grupo">
+          <label for="nova">Nova senha</label>
+          <input type="password" id="nova" required minlength="6" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+        </div>
+        <div class="form-grupo">
+          <label for="conf">Confirmar nova senha</label>
+          <input type="password" id="conf" required minlength="6" placeholder="Repita a senha" autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn btn-block">Redefinir senha</button>
+      </form>
+
+      <div style="text-align:center;margin-top:14px">
+        <a href="/" style="font-size:13px">Voltar para o login</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const alerta = document.getElementById('alerta');
+    const form = document.getElementById('form-reset');
+
+    if (!token) {
+      alerta.innerHTML = '<div class="alerta alerta-erro">Link inválido. Solicite um novo link na tela de login.</div>';
+      form.style.display = 'none';
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      alerta.innerHTML = '';
+      const nova = document.getElementById('nova').value;
+      const conf = document.getElementById('conf').value;
+      if (nova !== conf) {
+        alerta.innerHTML = '<div class="alerta alerta-erro">As senhas não conferem.</div>';
+        return;
+      }
+      const r = await fetch('/api/redefinir-senha', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, nova_senha: nova })
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        alerta.innerHTML = `<div class="alerta alerta-erro">${j.erro || 'Erro'}</div>`;
+        return;
+      }
+      alerta.innerHTML = '<div class="alerta alerta-sucesso">✅ Senha redefinida com sucesso! Redirecionando para o login…</div>';
+      form.style.display = 'none';
+      setTimeout(() => { window.location.href = '/'; }, 2000);
+    });
+  </script>
+</body>
+</html>
