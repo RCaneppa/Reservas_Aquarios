@@ -31,6 +31,7 @@
       <div class="tab ativo" data-tab="reservas">Reservas</div>
       <div class="tab" data-tab="socios">Sócios</div>
       <div class="tab" data-tab="cadastros">Cadastros</div>
+      <div class="tab" data-tab="espacos">Espaços</div>
       <div class="tab" data-tab="infracoes">Infrações</div>
       <div class="tab" data-tab="audit">Audit Log (LGPD)</div>
     </div>
@@ -125,6 +126,21 @@
           <button class="btn btn-verde" id="btn-importar" disabled>Importar</button>
         </div>
         <div id="resultado-import"></div>
+      </div>
+    </section>
+
+    <section id="tab-espacos" style="display:none">
+      <div class="card">
+        <h2>📸 Fotos dos espaços</h2>
+        <p style="font-size:13px;color:var(--cinza);margin-top:0">
+          Faça upload de uma foto real para cada espaço (JPG, PNG ou WEBP, até 3 MB).
+          Espaços sem foto específica continuam usando a imagem genérica do tipo.
+        </p>
+        <div class="alerta alerta-aviso" style="font-size:13px">
+          ⚠️ <b>Atenção:</b> no plano gratuito do Render, fotos enviadas podem ser perdidas em redeploys.
+          Para produção, configurar Render Disk persistente ou storage externo (S3/Cloudinary).
+        </div>
+        <div id="grid-espacos-admin" class="grid-espacos"></div>
       </div>
     </section>
 

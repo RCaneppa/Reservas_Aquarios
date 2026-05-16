@@ -75,7 +75,7 @@ function disponibilidade(dataIso) {
       result.espacos.push({
         id: esp.id, codigo: esp.codigo, nome: esp.nome, tipo: esp.tipo,
         modo: 'periodo', conjugado_com: esp.conjugado_com,
-        taxa_limpeza: esp.taxa_limpeza,
+        taxa_limpeza: esp.taxa_limpeza, foto_url: esp.foto_url,
         slots: PERIODOS.map(p => ({ periodo: p, disponivel: !ocupado[p] }))
       });
     } else {
@@ -89,7 +89,7 @@ function disponibilidade(dataIso) {
       }
       result.espacos.push({
         id: esp.id, codigo: esp.codigo, nome: esp.nome, tipo: esp.tipo,
-        modo: 'hora', taxa_limpeza: esp.taxa_limpeza,
+        modo: 'hora', taxa_limpeza: esp.taxa_limpeza, foto_url: esp.foto_url,
         slots: horas
       });
     }

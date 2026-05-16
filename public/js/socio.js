@@ -98,7 +98,7 @@ async function consultarDisponibilidade() {
       if (e.conjugado_com) extra.push(`Conjugada com ${e.conjugado_com}`);
       html += `
         <div class="espaco-card">
-          <div class="foto" style="background-image:url('${FOTOS[e.tipo]}')">
+          <div class="foto" style="background-image:url('${e.foto_url || FOTOS[e.tipo]}')">
             <div class="icone-overlay">${ICONES[e.tipo]}</div>
           </div>
           <div class="corpo">

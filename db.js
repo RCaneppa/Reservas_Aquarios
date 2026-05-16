@@ -34,6 +34,7 @@ function init() {
       modo_reserva TEXT NOT NULL,                    -- 'periodo' | 'hora'
       conjugado_com TEXT,                            -- código de outra churrasqueira (par)
       taxa_limpeza REAL NOT NULL DEFAULT 0,
+      foto_url TEXT,                                 -- caminho da foto específica do espaço
       ativo INTEGER NOT NULL DEFAULT 1
     );
 
@@ -95,6 +96,14 @@ function init() {
   `);
 }
 
+function migrar() {
+  // Migrações idempotentes para bases já existentes
+  const colsEspacos = db.prepare("PRAGMA table_info(espacos)").all();
+  if (!colsEspacos.find(c => c.name === 'foto_url')) {
+    db.exec("ALTER TABLE espacos ADD COLUMN foto_url TEXT");
+  }
+}
+
 function seed() {
   const countSocios = db.prepare('SELECT COUNT(*) as n FROM socios').get().n;
   if (countSocios === 0) {
@@ -133,12 +142,14 @@ function seed() {
 
 if (require.main === module && process.argv.includes('--seed')) {
   init();
+  migrar();
   seed();
   console.log('✓ Banco inicializado e populado.');
   process.exit(0);
 }
 
 init();
+migrar();
 seed();
 
 module.exports = db;

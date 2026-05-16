@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
+const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const XLSX = require('xlsx');
@@ -11,6 +12,25 @@ const regras = require('./regras');
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+});
+
+const PASTA_ESPACOS = path.join(__dirname, 'public', 'img', 'espacos');
+fs.mkdirSync(PASTA_ESPACOS, { recursive: true });
+
+const uploadFoto = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, PASTA_ESPACOS),
+    filename: (req, file, cb) => {
+      const ext = (path.extname(file.originalname).toLowerCase() || '.jpg')
+        .replace(/[^a-z0-9.]/g, '');
+      cb(null, `${req.params.codigo}-${Date.now()}${ext}`);
+    }
+  }),
+  limits: { fileSize: 3 * 1024 * 1024 }, // 3 MB
+  fileFilter: (_req, file, cb) => {
+    const ok = /^image\/(jpeg|png|webp|jpg)/i.test(file.mimetype);
+    cb(ok ? null : new Error('Apenas imagens JPG, PNG ou WEBP.'), ok);
+  }
 });
 
 const app = express();
@@ -79,6 +99,41 @@ app.get('/api/me', (req, res) => {
 // ---------- Espaços / disponibilidade ----------
 app.get('/api/espacos', (_req, res) => {
   res.json(db.prepare('SELECT * FROM espacos WHERE ativo = 1 ORDER BY id').all());
+});
+
+// Upload de foto por espaço (admin)
+app.post('/api/admin/espacos/:codigo/foto', exigeLogin, exigeAdmin, (req, res) => {
+  uploadFoto.single('foto')(req, res, (err) => {
+    if (err) return res.status(400).json({ erro: err.message });
+    if (!req.file) return res.status(400).json({ erro: 'Envie um arquivo no campo "foto".' });
+    const esp = db.prepare('SELECT * FROM espacos WHERE codigo = ?').get(req.params.codigo);
+    if (!esp) {
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({ erro: 'Espaço não encontrado.' });
+    }
+    // Remove foto antiga (se houver)
+    if (esp.foto_url) {
+      const antiga = path.join(__dirname, 'public', esp.foto_url.replace(/^\//, ''));
+      if (fs.existsSync(antiga)) { try { fs.unlinkSync(antiga); } catch {} }
+    }
+    const fotoUrl = '/img/espacos/' + req.file.filename;
+    db.prepare('UPDATE espacos SET foto_url = ? WHERE codigo = ?').run(fotoUrl, req.params.codigo);
+    db.prepare(`INSERT INTO audit_log (socio_id, acao, entidade, entidade_id, detalhes, ip) VALUES (?, 'upload_foto_espaco', 'espaco', ?, ?, ?)`)
+      .run(req.session.userId, esp.id, JSON.stringify({ codigo: esp.codigo, foto_url: fotoUrl }), ip(req));
+    res.json({ ok: true, foto_url: fotoUrl });
+  });
+});
+
+// Remover foto
+app.delete('/api/admin/espacos/:codigo/foto', exigeLogin, exigeAdmin, (req, res) => {
+  const esp = db.prepare('SELECT * FROM espacos WHERE codigo = ?').get(req.params.codigo);
+  if (!esp) return res.status(404).json({ erro: 'Espaço não encontrado.' });
+  if (esp.foto_url) {
+    const arq = path.join(__dirname, 'public', esp.foto_url.replace(/^\//, ''));
+    if (fs.existsSync(arq)) { try { fs.unlinkSync(arq); } catch {} }
+  }
+  db.prepare('UPDATE espacos SET foto_url = NULL WHERE codigo = ?').run(req.params.codigo);
+  res.json({ ok: true });
 });
 
 app.get('/api/disponibilidade', exigeLogin, (req, res) => {

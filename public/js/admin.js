@@ -27,12 +27,13 @@ document.querySelectorAll('.tab').forEach(t => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('ativo'));
     t.classList.add('ativo');
     const aba = t.dataset.tab;
-    ['reservas', 'socios', 'cadastros', 'infracoes', 'audit'].forEach(a => {
+    ['reservas', 'socios', 'cadastros', 'espacos', 'infracoes', 'audit'].forEach(a => {
       document.getElementById('tab-' + a).style.display = a === aba ? '' : 'none';
     });
     if (aba === 'socios') carregarSocios();
     if (aba === 'infracoes') carregarInfracoes();
     if (aba === 'audit') carregarAudit();
+    if (aba === 'espacos') carregarEspacos();
     if (aba === 'cadastros') { /* nada a carregar */ }
   });
 });
@@ -232,6 +233,73 @@ async function carregarAudit() {
   });
   html += '</tbody></table>';
   wrap.innerHTML = html;
+}
+
+// ====== Espaços (upload de fotos) ======
+const ICONES_ESPACO = { churrasqueira: '🔥', salao: '🎉', campo: '⚽', quadra: '🏐' };
+const FOTOS_FALLBACK = {
+  churrasqueira: '/img/churrasqueira.jpg',
+  salao: '/img/salao.jpg',
+  campo: '/img/campo.jpg',
+  quadra: '/img/quadra.jpg',
+};
+
+async function carregarEspacos() {
+  const r = await fetch('/api/espacos');
+  const lista = await r.json();
+  const wrap = document.getElementById('grid-espacos-admin');
+  let html = '';
+  lista.forEach(e => {
+    const foto = e.foto_url || FOTOS_FALLBACK[e.tipo];
+    const temFotoPropria = !!e.foto_url;
+    html += `
+      <div class="espaco-card" data-codigo="${e.codigo}">
+        <div class="foto" style="background-image:url('${foto}?t=${Date.now()}')">
+          <div class="icone-overlay">${ICONES_ESPACO[e.tipo]}</div>
+          ${temFotoPropria ? '<div class="badge-foto-propria">Foto real</div>' : '<div class="badge-foto-generica">Genérica</div>'}
+        </div>
+        <div class="corpo">
+          <div class="nome">${e.nome}</div>
+          <div class="meta">${e.codigo} · ${e.tipo}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <label class="btn btn-amarelo btn-sm" style="margin:0;cursor:pointer">
+              📤 Enviar foto
+              <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none"
+                onchange="enviarFotoEspaco('${e.codigo}', this)">
+            </label>
+            ${temFotoPropria
+              ? `<button class="btn btn-outline btn-sm" onclick="removerFotoEspaco('${e.codigo}')">Remover</button>`
+              : ''}
+          </div>
+        </div>
+      </div>`;
+  });
+  wrap.innerHTML = html;
+}
+
+async function enviarFotoEspaco(codigo, input) {
+  const f = input.files[0];
+  if (!f) return;
+  if (f.size > 3 * 1024 * 1024) {
+    alert('Arquivo muito grande (máx. 3 MB).');
+    return;
+  }
+  const fd = new FormData();
+  fd.append('foto', f);
+  const card = document.querySelector(`.espaco-card[data-codigo="${codigo}"]`);
+  if (card) card.style.opacity = '0.5';
+
+  const r = await fetch(`/api/admin/espacos/${codigo}/foto`, { method: 'POST', body: fd });
+  const j = await r.json();
+  if (!r.ok) { alert('❌ ' + (j.erro || 'Erro no upload')); }
+  carregarEspacos();
+}
+
+async function removerFotoEspaco(codigo) {
+  if (!confirm(`Remover a foto do espaço ${codigo}? Voltará a usar a foto genérica.`)) return;
+  const r = await fetch(`/api/admin/espacos/${codigo}/foto`, { method: 'DELETE' });
+  if (!r.ok) { alert('Erro ao remover'); return; }
+  carregarEspacos();
 }
 
 // ====== Cadastro individual ======
