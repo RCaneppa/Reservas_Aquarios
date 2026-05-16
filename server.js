@@ -3,8 +3,15 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
+const XLSX = require('xlsx');
 const db = require('./db');
 const regras = require('./regras');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -127,6 +134,68 @@ app.post('/api/admin/socios/:id/desbloquear', exigeLogin, exigeAdmin, (req, res)
     .run(req.session.userId, Number(req.params.id), ip(req));
   res.json({ ok: true });
 });
+// Cadastro individual
+app.post('/api/admin/socios', exigeLogin, exigeAdmin, (req, res) => {
+  const r = regras.criarSocio({ ...req.body, adminId: req.session.userId, ip: ip(req) });
+  if (!r.ok) return res.status(400).json(r);
+  res.json(r);
+});
+
+// Template de importação (.xlsx)
+app.get('/api/admin/socios/template', exigeLogin, exigeAdmin, (_req, res) => {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['matricula', 'nome', 'cpf', 'email', 'telefone', 'senha', 'papel', 'adimplente'],
+    ['1010', 'Nome Sócio Exemplo', '111.222.333-44', 'email@exemplo.com', '(54) 99999-0000', '', 'socio', 1],
+    ['1011', 'Outro Sócio', '555.666.777-88', '', '', '', 'socio', 1],
+  ]);
+  ws['!cols'] = [{ wch: 12 }, { wch: 32 }, { wch: 16 }, { wch: 28 }, { wch: 18 }, { wch: 12 }, { wch: 8 }, { wch: 12 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'socios');
+  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+  res.setHeader('Content-Disposition', 'attachment; filename="modelo-importacao-socios.xlsx"');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.send(buf);
+});
+
+// Importação em massa (.xlsx)
+app.post('/api/admin/socios/importar', exigeLogin, exigeAdmin, upload.single('arquivo'), (req, res) => {
+  if (!req.file) return res.status(400).json({ erro: 'Envie um arquivo .xlsx no campo "arquivo".' });
+  let linhas;
+  try {
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    linhas = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+  } catch (e) {
+    return res.status(400).json({ erro: 'Não foi possível ler o arquivo. Confirme que é um .xlsx válido.' });
+  }
+  if (!linhas.length) return res.status(400).json({ erro: 'Planilha vazia ou sem cabeçalho.' });
+
+  // Normaliza chaves (lowercase + remove acentos)
+  const norm = (s) => String(s || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const ALIAS = {
+    matricula: 'matricula', 'matrícula': 'matricula',
+    nome: 'nome', 'nome_completo': 'nome', 'nome completo': 'nome',
+    cpf: 'cpf',
+    email: 'email', 'e-mail': 'email',
+    telefone: 'telefone', 'celular': 'telefone', 'fone': 'telefone',
+    senha: 'senha',
+    papel: 'papel', 'perfil': 'papel', 'tipo': 'papel',
+    adimplente: 'adimplente',
+  };
+  const linhasNorm = linhas.map(obj => {
+    const out = {};
+    for (const k of Object.keys(obj)) {
+      const nk = ALIAS[norm(k)];
+      if (nk) out[nk] = obj[k];
+    }
+    return out;
+  });
+
+  const resumo = regras.importarSociosLote(linhasNorm, { adminId: req.session.userId, ip: ip(req) });
+  res.json(resumo);
+});
+
 app.post('/api/admin/socios/:id/adimplencia', exigeLogin, exigeAdmin, (req, res) => {
   const adimplente = req.body?.adimplente ? 1 : 0;
   db.prepare('UPDATE socios SET adimplente = ? WHERE id = ?').run(adimplente, Number(req.params.id));

@@ -30,6 +30,7 @@
     <div class="tabs">
       <div class="tab ativo" data-tab="reservas">Reservas</div>
       <div class="tab" data-tab="socios">Sócios</div>
+      <div class="tab" data-tab="cadastros">Cadastros</div>
       <div class="tab" data-tab="infracoes">Infrações</div>
       <div class="tab" data-tab="audit">Audit Log (LGPD)</div>
     </div>
@@ -56,6 +57,74 @@
       <div class="card">
         <h2>👥 Sócios cadastrados</h2>
         <div id="lista-socios"></div>
+      </div>
+    </section>
+
+    <section id="tab-cadastros" style="display:none">
+      <div class="card">
+        <h2>➕ Cadastrar novo sócio</h2>
+        <div id="alerta-cadastro"></div>
+        <form id="form-novo-socio" class="grid-form">
+          <div class="form-grupo">
+            <label>Matrícula *</label>
+            <input type="text" name="matricula" required placeholder="Ex: 1010">
+          </div>
+          <div class="form-grupo">
+            <label>Nome completo *</label>
+            <input type="text" name="nome" required placeholder="Nome do sócio">
+          </div>
+          <div class="form-grupo">
+            <label>CPF</label>
+            <input type="text" name="cpf" placeholder="000.000.000-00">
+          </div>
+          <div class="form-grupo">
+            <label>E-mail</label>
+            <input type="email" name="email" placeholder="email@exemplo.com">
+          </div>
+          <div class="form-grupo">
+            <label>Telefone</label>
+            <input type="text" name="telefone" placeholder="(54) 99999-0000">
+          </div>
+          <div class="form-grupo">
+            <label>Senha (opcional)</label>
+            <input type="text" name="senha" placeholder="Em branco = gerada automaticamente">
+          </div>
+          <div class="form-grupo">
+            <label>Perfil</label>
+            <select name="papel">
+              <option value="socio">Sócio</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+          <div class="form-grupo">
+            <label>Adimplência</label>
+            <select name="adimplente">
+              <option value="1">Em dia</option>
+              <option value="0">Inadimplente</option>
+            </select>
+          </div>
+          <div class="form-grupo form-grupo-acao">
+            <button type="submit" class="btn btn-verde">Cadastrar Sócio</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>📥 Importação em massa (.xlsx)</h2>
+        <p style="font-size:13px;color:var(--cinza);margin-top:0">
+          Baixe o modelo, preencha com os dados dos sócios e faça o upload. Colunas: <b>matricula, nome, cpf, email, telefone, senha, papel, adimplente</b>.
+          Senhas em branco serão geradas automaticamente no formato <code>&lt;matricula&gt;@aqua</code>.
+        </p>
+        <div class="toolbar">
+          <a href="/api/admin/socios/template" class="btn btn-outline">⬇️ Baixar modelo .xlsx</a>
+          <label class="btn btn-amarelo" style="margin:0;cursor:pointer">
+            📤 Selecionar planilha
+            <input type="file" id="arquivo-import" accept=".xlsx,.xls" style="display:none">
+          </label>
+          <span id="arquivo-nome" style="font-size:13px;color:var(--cinza)">Nenhum arquivo selecionado</span>
+          <button class="btn btn-verde" id="btn-importar" disabled>Importar</button>
+        </div>
+        <div id="resultado-import"></div>
       </div>
     </section>
 

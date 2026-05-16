@@ -286,6 +286,36 @@ table.lista tr:hover { background: #fafbfc; }
 }
 .vazio .icone-grande { font-size: 48px; margin-bottom: 8px; opacity: 0.5; }
 
+.grid-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.grid-form .form-grupo { margin-bottom: 0; }
+.grid-form .form-grupo-acao {
+  grid-column: 1 / -1;
+  display: flex; justify-content: flex-end; margin-top: 6px;
+}
+
+.import-tabela {
+  margin-top: 14px; max-height: 320px; overflow-y: auto;
+  border: 1px solid var(--borda); border-radius: 8px;
+}
+.import-tabela table { margin: 0; border-radius: 0; }
+.import-resumo {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  margin: 14px 0;
+}
+.import-resumo .bloco {
+  flex: 1; min-width: 140px;
+  padding: 12px; border-radius: 8px; text-align: center;
+}
+.import-resumo .bloco .num { font-size: 24px; font-weight: 800; }
+.import-resumo .bloco .rot { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+.import-resumo .bloco.verde { background: #e6f7e9; color: var(--verde-escuro); }
+.import-resumo .bloco.vermelho { background: #ffe5e5; color: var(--vermelho); }
+.import-resumo .bloco.azul { background: var(--azul-bg); color: var(--azul-escuro); }
+
 @media (max-width: 640px) {
   .topo-conteudo { flex-direction: column; gap: 8px; padding: 10px; }
   .topo-user { width: 100%; justify-content: space-between; }

@@ -33,6 +33,7 @@ document.querySelectorAll('.tab').forEach(t => {
     if (aba === 'socios') carregarSocios();
     if (aba === 'infracoes') carregarInfracoes();
     if (aba === 'audit') carregarAudit();
+    if (aba === 'cadastros') { /* nada a carregar */ }
   });
 });
 
@@ -232,6 +233,100 @@ async function carregarAudit() {
   html += '</tbody></table>';
   wrap.innerHTML = html;
 }
+
+// ====== Cadastro individual ======
+document.getElementById('form-novo-socio').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const dados = Object.fromEntries(new FormData(form));
+  dados.adimplente = Number(dados.adimplente);
+  const r = await fetch('/api/admin/socios', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dados)
+  });
+  const j = await r.json();
+  const alerta = document.getElementById('alerta-cadastro');
+  if (!r.ok) {
+    alerta.innerHTML = `<div class="alerta alerta-erro">❌ ${j.erro || 'Erro ao cadastrar'}</div>`;
+    return;
+  }
+  const senhaTxt = j.senha_inicial
+    ? `<br><b>Senha inicial gerada:</b> <code>${j.senha_inicial}</code> (anote e repasse ao sócio)`
+    : '';
+  alerta.innerHTML = `<div class="alerta alerta-sucesso">✅ Sócio <b>${j.matricula}</b> cadastrado com sucesso.${senhaTxt}</div>`;
+  form.reset();
+  carregarKPIs();
+});
+
+// ====== Importação xlsx ======
+const inputArquivo = document.getElementById('arquivo-import');
+const btnImportar = document.getElementById('btn-importar');
+const arquivoNome = document.getElementById('arquivo-nome');
+
+inputArquivo.addEventListener('change', () => {
+  const f = inputArquivo.files[0];
+  if (!f) {
+    arquivoNome.textContent = 'Nenhum arquivo selecionado';
+    btnImportar.disabled = true;
+    return;
+  }
+  arquivoNome.textContent = `${f.name} (${(f.size / 1024).toFixed(1)} KB)`;
+  btnImportar.disabled = false;
+});
+
+btnImportar.addEventListener('click', async () => {
+  const f = inputArquivo.files[0];
+  if (!f) return;
+  const fd = new FormData();
+  fd.append('arquivo', f);
+  btnImportar.disabled = true;
+  btnImportar.textContent = 'Importando…';
+
+  const r = await fetch('/api/admin/socios/importar', { method: 'POST', body: fd });
+  const j = await r.json();
+
+  btnImportar.disabled = false;
+  btnImportar.textContent = 'Importar';
+
+  const wrap = document.getElementById('resultado-import');
+  if (!r.ok) {
+    wrap.innerHTML = `<div class="alerta alerta-erro">❌ ${j.erro || 'Erro na importação'}</div>`;
+    return;
+  }
+
+  let html = `
+    <div class="import-resumo">
+      <div class="bloco azul"><div class="num">${j.total}</div><div class="rot">Linhas lidas</div></div>
+      <div class="bloco verde"><div class="num">${j.criados}</div><div class="rot">Criados</div></div>
+      <div class="bloco vermelho"><div class="num">${j.ignorados}</div><div class="rot">Ignorados</div></div>
+    </div>
+  `;
+
+  if (j.criados_detalhes.length) {
+    html += `<h3>✅ Sócios criados</h3>
+      <div class="import-tabela"><table class="lista">
+      <thead><tr><th>Linha</th><th>Matrícula</th><th>Senha inicial</th></tr></thead><tbody>`;
+    j.criados_detalhes.forEach(d => {
+      html += `<tr><td>${d.linha}</td><td><b>${d.matricula}</b></td><td><code>${d.senha_inicial || '(definida na planilha)'}</code></td></tr>`;
+    });
+    html += '</tbody></table></div>';
+  }
+  if (j.erros.length) {
+    html += `<h3>⚠️ Linhas ignoradas</h3>
+      <div class="import-tabela"><table class="lista">
+      <thead><tr><th>Linha</th><th>Matrícula</th><th>Motivo</th></tr></thead><tbody>`;
+    j.erros.forEach(e => {
+      html += `<tr><td>${e.linha}</td><td>${e.matricula || '—'}</td><td>${e.erro}</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+  }
+
+  wrap.innerHTML = html;
+  carregarKPIs();
+  inputArquivo.value = '';
+  arquivoNome.textContent = 'Nenhum arquivo selecionado';
+  btnImportar.disabled = true;
+});
 
 document.getElementById('btn-sair').addEventListener('click', async () => {
   await fetch('/api/logout', { method: 'POST' });

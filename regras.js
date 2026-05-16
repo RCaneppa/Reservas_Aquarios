@@ -1,5 +1,6 @@
 // Regras de negócio do sistema de reservas Aquárius.
 const db = require('./db');
+const bcrypt = require('bcryptjs');
 
 const VALOR_BASE_INFRACAO = 92.00; // 100% = R$ 92,00
 const PERIODOS = ['diurno', 'noturno'];
@@ -286,6 +287,90 @@ function listarSocios() {
   `).all();
 }
 
+// ===== Cadastro de sócios =====
+function normalizarMatricula(m) {
+  if (m === null || m === undefined) return '';
+  return String(m).trim().replace(/\s+/g, '');
+}
+
+function senhaPadrao(matricula) {
+  // Default usa os últimos dígitos da matrícula + "aqua" → fácil de comunicar e única o suficiente.
+  const m = normalizarMatricula(matricula);
+  return (m || 'novo') + '@aqua';
+}
+
+function criarSocio({ matricula, nome, cpf, email, telefone, senha, papel = 'socio', adimplente = 1, adminId = null, ip = null }) {
+  matricula = normalizarMatricula(matricula);
+  nome = (nome || '').trim();
+  if (!matricula) return { ok: false, erro: 'Matrícula é obrigatória.' };
+  if (!nome) return { ok: false, erro: 'Nome é obrigatório.' };
+
+  const existe = db.prepare('SELECT id FROM socios WHERE matricula = ?').get(matricula);
+  if (existe) return { ok: false, erro: `Matrícula ${matricula} já cadastrada.` };
+
+  const senhaFinal = (senha && String(senha).trim()) ? String(senha).trim() : senhaPadrao(matricula);
+  const hash = bcrypt.hashSync(senhaFinal, 10);
+
+  const info = db.prepare(`
+    INSERT INTO socios (matricula, nome, cpf, email, telefone, senha_hash, papel, adimplente)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(matricula, nome, (cpf || '').trim() || null, (email || '').trim() || null,
+         (telefone || '').trim() || null, hash, papel === 'admin' ? 'admin' : 'socio',
+         adimplente ? 1 : 0);
+
+  db.prepare(`
+    INSERT INTO audit_log (socio_id, acao, entidade, entidade_id, detalhes, ip)
+    VALUES (?, 'criar_socio', 'socio', ?, ?, ?)
+  `).run(adminId, info.lastInsertRowid, JSON.stringify({ matricula, nome }), ip);
+
+  return {
+    ok: true,
+    socio_id: info.lastInsertRowid,
+    matricula,
+    senha_inicial: senha ? null : senhaFinal,  // só retorna se foi gerada
+  };
+}
+
+function importarSociosLote(linhas, { adminId = null, ip = null } = {}) {
+  // linhas: array de objetos com chaves { matricula, nome, cpf, email, telefone, senha, papel, adimplente }
+  const resumo = {
+    total: linhas.length,
+    criados: 0,
+    ignorados: 0,
+    erros: [],
+    criados_detalhes: [],
+  };
+  const tx = db.transaction((items) => {
+    for (let i = 0; i < items.length; i++) {
+      const linha = items[i];
+      const r = criarSocio({
+        matricula: linha.matricula,
+        nome: linha.nome,
+        cpf: linha.cpf,
+        email: linha.email,
+        telefone: linha.telefone,
+        senha: linha.senha,
+        papel: linha.papel || 'socio',
+        adimplente: linha.adimplente === undefined ? 1 : (Number(linha.adimplente) ? 1 : 0),
+        adminId, ip,
+      });
+      if (r.ok) {
+        resumo.criados++;
+        resumo.criados_detalhes.push({
+          linha: i + 2, // +2 pois excel tem header na linha 1
+          matricula: r.matricula,
+          senha_inicial: r.senha_inicial,
+        });
+      } else {
+        resumo.ignorados++;
+        resumo.erros.push({ linha: i + 2, matricula: linha.matricula, erro: r.erro });
+      }
+    }
+  });
+  tx(linhas);
+  return resumo;
+}
+
 module.exports = {
   VALOR_BASE_INFRACAO,
   hoje,
@@ -300,4 +385,6 @@ module.exports = {
   getEspacoPorCodigo,
   validarSocio,
   getSocio,
+  criarSocio,
+  importarSociosLote,
 };
