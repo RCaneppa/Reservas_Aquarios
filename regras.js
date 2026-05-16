@@ -434,6 +434,73 @@ function consumirTokenReset({ token, novaSenha, ip = null }) {
   return { ok: true, socio_id: reg.socio_id };
 }
 
+// ===== Comunicados =====
+function listarComunicadosAtivos() {
+  return db.prepare(`
+    SELECT id, titulo, conteudo, destaque, criado_em
+    FROM comunicados WHERE ativo = 1
+    ORDER BY destaque DESC, criado_em DESC LIMIT 50
+  `).all();
+}
+function listarTodosComunicados() {
+  return db.prepare(`
+    SELECT c.*, s.nome as criado_por_nome
+    FROM comunicados c LEFT JOIN socios s ON s.id = c.criado_por
+    ORDER BY c.criado_em DESC LIMIT 100
+  `).all();
+}
+function criarComunicado({ titulo, conteudo, destaque, criadoPor, ip = null }) {
+  titulo = (titulo || '').trim();
+  conteudo = (conteudo || '').trim();
+  if (!titulo) return { ok: false, erro: 'Título é obrigatório.' };
+  if (!conteudo) return { ok: false, erro: 'Conteúdo é obrigatório.' };
+  const info = db.prepare(`
+    INSERT INTO comunicados (titulo, conteudo, destaque, criado_por)
+    VALUES (?, ?, ?, ?)
+  `).run(titulo, conteudo, destaque ? 1 : 0, criadoPor);
+  db.prepare(`INSERT INTO audit_log (socio_id, acao, entidade, entidade_id, detalhes, ip) VALUES (?, 'criar_comunicado', 'comunicado', ?, ?, ?)`)
+    .run(criadoPor, info.lastInsertRowid, JSON.stringify({ titulo }), ip);
+  return { ok: true, id: info.lastInsertRowid };
+}
+function alterarComunicado({ id, titulo, conteudo, destaque, ativo, adminId, ip = null }) {
+  const c = db.prepare('SELECT * FROM comunicados WHERE id = ?').get(id);
+  if (!c) return { ok: false, erro: 'Comunicado não encontrado.' };
+  db.prepare(`
+    UPDATE comunicados SET titulo = ?, conteudo = ?, destaque = ?, ativo = ? WHERE id = ?
+  `).run(
+    titulo ?? c.titulo, conteudo ?? c.conteudo,
+    destaque === undefined ? c.destaque : (destaque ? 1 : 0),
+    ativo === undefined ? c.ativo : (ativo ? 1 : 0),
+    id
+  );
+  db.prepare(`INSERT INTO audit_log (socio_id, acao, entidade, entidade_id, ip) VALUES (?, 'alterar_comunicado', 'comunicado', ?, ?)`).run(adminId, id, ip);
+  return { ok: true };
+}
+function removerComunicado({ id, adminId, ip = null }) {
+  const r = db.prepare('DELETE FROM comunicados WHERE id = ?').run(id);
+  if (!r.changes) return { ok: false, erro: 'Comunicado não encontrado.' };
+  db.prepare(`INSERT INTO audit_log (socio_id, acao, entidade, entidade_id, ip) VALUES (?, 'remover_comunicado', 'comunicado', ?, ?)`).run(adminId, id, ip);
+  return { ok: true };
+}
+
+// ===== Configurações de aparência =====
+function getConfig(chave) {
+  const row = db.prepare('SELECT valor FROM config_site WHERE chave = ?').get(chave);
+  return row ? row.valor : null;
+}
+function setConfig(chave, valor) {
+  db.prepare(`
+    INSERT INTO config_site (chave, valor) VALUES (?, ?)
+    ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor, atualizado_em = CURRENT_TIMESTAMP
+  `).run(chave, valor);
+}
+function getAparencia() {
+  return {
+    logo_url: getConfig('logo_url'),
+    banner_url: getConfig('banner_url') || '/img/banner-padrao.jpg',
+  };
+}
+
 // ===== Carga delta de adimplência =====
 function importarAdimplenciaLote(linhas, { adminId = null, ip = null } = {}) {
   const resumo = {
@@ -503,4 +570,11 @@ module.exports = {
   gerarTokenReset,
   consumirTokenReset,
   importarAdimplenciaLote,
+  listarComunicadosAtivos,
+  listarTodosComunicados,
+  criarComunicado,
+  alterarComunicado,
+  removerComunicado,
+  getAparencia,
+  setConfig,
 };

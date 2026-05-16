@@ -7,10 +7,15 @@
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+  <div class="banner-clube" id="banner-clube">
+    <div class="banner-titulo">Bem-vindo ao Aquárius Clube de Campo</div>
+  </div>
+
   <header class="topo">
     <div class="topo-conteudo">
       <div class="topo-marca">
-        <div class="logo-mini">🌴</div>
+        <img id="logo-topo" class="logo-img" alt="Aquárius" style="display:none">
+        <div id="logo-topo-fallback" class="logo-mini">🌴</div>
         <div>
           <strong>AQUÁRIUS</strong>
           <small>Clube de Campo</small>
@@ -30,6 +35,7 @@
     <div class="tabs">
       <div class="tab ativo" data-tab="reservar">Nova Reserva</div>
       <div class="tab" data-tab="minhas">Minhas Reservas</div>
+      <div class="tab" data-tab="comunicados">📢 Comunicados <span id="badge-comunicados" class="badge badge-amarelo" style="display:none"></span></div>
     </div>
 
     <!-- TAB: Reservar -->
@@ -47,6 +53,14 @@
       </div>
 
       <div id="disponibilidade"></div>
+    </section>
+
+    <!-- TAB: Comunicados -->
+    <section id="tab-comunicados" style="display:none">
+      <div class="card">
+        <h2>📢 Comunicados do Clube</h2>
+        <div id="lista-comunicados-socio"></div>
+      </div>
     </section>
 
     <!-- TAB: Minhas -->

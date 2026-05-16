@@ -63,7 +63,25 @@ const upload = multer({
 });
 
 const PASTA_ESPACOS = path.join(__dirname, 'public', 'img', 'espacos');
+const PASTA_SITE = path.join(__dirname, 'public', 'img', 'site');
 fs.mkdirSync(PASTA_ESPACOS, { recursive: true });
+fs.mkdirSync(PASTA_SITE, { recursive: true });
+
+const uploadAparencia = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, PASTA_SITE),
+    filename: (req, file, cb) => {
+      const tipo = req.params.tipo; // 'logo' | 'banner'
+      const ext = (path.extname(file.originalname).toLowerCase() || '.jpg').replace(/[^a-z0-9.]/g, '');
+      cb(null, `${tipo}-${Date.now()}${ext}`);
+    }
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok = /^image\/(jpeg|png|webp|jpg|svg\+xml)/i.test(file.mimetype);
+    cb(ok ? null : new Error('Use JPG, PNG, WEBP ou SVG.'), ok);
+  }
+});
 
 const uploadFoto = multer({
   storage: multer.diskStorage({
@@ -190,6 +208,74 @@ app.get('/api/me', (req, res) => {
 // ---------- Espaços / disponibilidade ----------
 app.get('/api/espacos', (_req, res) => {
   res.json(db.prepare('SELECT * FROM espacos WHERE ativo = 1 ORDER BY id').all());
+});
+
+// ---------- Aparência (logo + banner) ----------
+app.get('/api/aparencia', (_req, res) => res.json(regras.getAparencia()));
+
+app.post('/api/admin/aparencia/:tipo', exigeLogin, exigeAdmin, (req, res) => {
+  const tipo = req.params.tipo;
+  if (!['logo', 'banner'].includes(tipo)) return res.status(400).json({ erro: 'Tipo inválido.' });
+  uploadAparencia.single('imagem')(req, res, (err) => {
+    if (err) return res.status(400).json({ erro: err.message });
+    if (!req.file) return res.status(400).json({ erro: 'Envie um arquivo no campo "imagem".' });
+    const url = '/img/site/' + req.file.filename;
+    // Remove a antiga
+    const antiga = regras.getAparencia()[tipo + '_url'];
+    if (antiga && antiga.startsWith('/img/site/')) {
+      const ant = path.join(__dirname, 'public', antiga.replace(/^\//, ''));
+      if (fs.existsSync(ant)) { try { fs.unlinkSync(ant); } catch {} }
+    }
+    regras.setConfig(tipo + '_url', url);
+    db.prepare(`INSERT INTO audit_log (socio_id, acao, entidade, detalhes, ip) VALUES (?, 'atualizar_aparencia', 'site', ?, ?)`)
+      .run(req.session.userId, JSON.stringify({ tipo, url }), ip(req));
+    res.json({ ok: true, [tipo + '_url']: url });
+  });
+});
+
+app.delete('/api/admin/aparencia/:tipo', exigeLogin, exigeAdmin, (req, res) => {
+  const tipo = req.params.tipo;
+  if (!['logo', 'banner'].includes(tipo)) return res.status(400).json({ erro: 'Tipo inválido.' });
+  const url = regras.getAparencia()[tipo + '_url'];
+  if (url && url.startsWith('/img/site/')) {
+    const arq = path.join(__dirname, 'public', url.replace(/^\//, ''));
+    if (fs.existsSync(arq)) { try { fs.unlinkSync(arq); } catch {} }
+  }
+  regras.setConfig(tipo + '_url', null);
+  res.json({ ok: true });
+});
+
+// ---------- Comunicados ----------
+app.get('/api/comunicados', exigeLogin, (_req, res) => {
+  res.json(regras.listarComunicadosAtivos());
+});
+
+app.get('/api/admin/comunicados', exigeLogin, exigeAdmin, (_req, res) => {
+  res.json(regras.listarTodosComunicados());
+});
+
+app.post('/api/admin/comunicados', exigeLogin, exigeAdmin, (req, res) => {
+  const { titulo, conteudo, destaque } = req.body || {};
+  const r = regras.criarComunicado({ titulo, conteudo, destaque, criadoPor: req.session.userId, ip: ip(req) });
+  if (!r.ok) return res.status(400).json(r);
+  res.json(r);
+});
+
+app.put('/api/admin/comunicados/:id', exigeLogin, exigeAdmin, (req, res) => {
+  const { titulo, conteudo, destaque, ativo } = req.body || {};
+  const r = regras.alterarComunicado({
+    id: Number(req.params.id),
+    titulo, conteudo, destaque, ativo,
+    adminId: req.session.userId, ip: ip(req)
+  });
+  if (!r.ok) return res.status(400).json(r);
+  res.json(r);
+});
+
+app.delete('/api/admin/comunicados/:id', exigeLogin, exigeAdmin, (req, res) => {
+  const r = regras.removerComunicado({ id: Number(req.params.id), adminId: req.session.userId, ip: ip(req) });
+  if (!r.ok) return res.status(400).json(r);
+  res.json(r);
 });
 
 // Upload de foto por espaço (admin)

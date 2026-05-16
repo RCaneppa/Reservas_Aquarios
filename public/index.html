@@ -10,7 +10,8 @@
   <div class="login-wrap">
     <div class="login-card">
       <div class="logo">
-        <div class="logo-circle">🌴</div>
+        <img id="logo-img" class="logo-img-grande" alt="Aquárius Clube de Campo" style="display:none">
+        <div id="logo-fallback" class="logo-circle">🌴</div>
         <h1>AQUÁRIUS</h1>
         <p>Clube de Campo</p>
       </div>
@@ -68,6 +69,15 @@
   </div>
 
   <script>
+    // Carrega o logo configurado pelo admin (se houver)
+    fetch('/api/aparencia').then(r => r.json()).then(a => {
+      if (a.logo_url) {
+        document.getElementById('logo-img').src = a.logo_url;
+        document.getElementById('logo-img').style.display = 'block';
+        document.getElementById('logo-fallback').style.display = 'none';
+      }
+    }).catch(() => {});
+
     const form = document.getElementById('form-login');
     const alerta = document.getElementById('alerta');
     form.addEventListener('submit', async (e) => {

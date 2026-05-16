@@ -338,6 +338,100 @@ table.lista tr:hover { background: #fafbfc; }
 .badge-foto-propria { background: var(--verde); color: white; }
 .badge-foto-generica { background: rgba(0,0,0,0.55); color: white; }
 
+/* ===== Banner do clube ===== */
+.banner-clube {
+  width: 100%;
+  height: 200px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--azul);
+  position: relative;
+}
+.banner-clube::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,0) 60%, rgba(0,0,0,0.45) 100%);
+}
+.banner-clube .banner-titulo {
+  position: absolute; bottom: 18px; left: 24px;
+  color: white; z-index: 1;
+  font-size: 22px; font-weight: 800;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+@media (max-width: 640px) {
+  .banner-clube { height: 140px; }
+  .banner-clube .banner-titulo { font-size: 16px; bottom: 10px; left: 14px; }
+}
+
+/* Logo da topbar */
+.topo-marca .logo-img {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: linear-gradient(135deg, var(--amarelo) 0%, var(--amarelo-escuro) 100%);
+}
+
+/* Logo grande do login */
+.logo-img-grande {
+  width: 130px; height: 130px;
+  margin: 0 auto 12px;
+  display: block;
+  object-fit: contain;
+}
+
+/* ===== Comunicados ===== */
+.comunicados-lista {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.comunicado-card {
+  background: white; border-radius: var(--radius);
+  padding: 14px 16px;
+  border-left: 4px solid var(--azul);
+  box-shadow: var(--sombra);
+}
+.comunicado-card.destaque {
+  border-left-color: var(--amarelo);
+  background: linear-gradient(to right, #fff9e6, white);
+}
+.comunicado-card.inativo {
+  opacity: 0.55;
+  border-left-color: var(--cinza);
+}
+.comunicado-card .cab {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 10px; margin-bottom: 6px;
+}
+.comunicado-card .titulo {
+  font-weight: 700; color: var(--azul-escuro); font-size: 16px;
+}
+.comunicado-card .data { font-size: 12px; color: var(--cinza); white-space: nowrap; }
+.comunicado-card .conteudo { font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
+.comunicado-card .acoes { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+
+.preview-aparencia {
+  margin-top: 12px;
+  display: flex; gap: 16px; flex-wrap: wrap;
+}
+.preview-aparencia .item {
+  flex: 1; min-width: 220px;
+  background: var(--cinza-bg);
+  border-radius: 8px; padding: 12px; text-align: center;
+}
+.preview-aparencia .item .rotulo {
+  font-size: 12px; color: var(--cinza);
+  text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+}
+.preview-aparencia .preview-logo {
+  width: 100px; height: 100px; border-radius: 50%;
+  object-fit: cover; background: white; margin: 0 auto 10px;
+  display: block; border: 2px solid var(--borda);
+}
+.preview-aparencia .preview-banner {
+  width: 100%; height: 110px;
+  background-size: cover; background-position: center;
+  border-radius: 8px; margin-bottom: 10px;
+}
+
 @media (max-width: 640px) {
   .topo-conteudo { flex-direction: column; gap: 8px; padding: 10px; }
   .topo-user { width: 100%; justify-content: space-between; }

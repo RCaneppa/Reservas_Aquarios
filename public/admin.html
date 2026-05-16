@@ -7,10 +7,15 @@
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+  <div class="banner-clube" id="banner-clube">
+    <div class="banner-titulo">Painel Administrativo</div>
+  </div>
+
   <header class="topo">
     <div class="topo-conteudo">
       <div class="topo-marca">
-        <div class="logo-mini">🌴</div>
+        <img id="logo-topo" class="logo-img" alt="Aquárius" style="display:none">
+        <div id="logo-topo-fallback" class="logo-mini">🌴</div>
         <div>
           <strong>AQUÁRIUS</strong>
           <small>Painel Administrativo</small>
@@ -32,6 +37,8 @@
       <div class="tab" data-tab="socios">Sócios</div>
       <div class="tab" data-tab="cadastros">Cadastros</div>
       <div class="tab" data-tab="espacos">Espaços</div>
+      <div class="tab" data-tab="comunicados">📢 Comunicados</div>
+      <div class="tab" data-tab="aparencia">🎨 Aparência</div>
       <div class="tab" data-tab="infracoes">Infrações</div>
       <div class="tab" data-tab="audit">Audit Log (LGPD)</div>
     </div>
@@ -160,6 +167,72 @@
           Para produção, configurar Render Disk persistente ou storage externo (S3/Cloudinary).
         </div>
         <div id="grid-espacos-admin" class="grid-espacos"></div>
+      </div>
+    </section>
+
+    <section id="tab-comunicados" style="display:none">
+      <div class="card">
+        <h2>➕ Novo comunicado</h2>
+        <div id="alerta-com"></div>
+        <form id="form-comunicado">
+          <div class="form-grupo">
+            <label>Título *</label>
+            <input type="text" name="titulo" required maxlength="120" placeholder="Ex: Manutenção da piscina">
+          </div>
+          <div class="form-grupo">
+            <label>Conteúdo *</label>
+            <textarea name="conteudo" required rows="5" style="width:100%;padding:10px 12px;border:1.5px solid var(--borda);border-radius:8px;font-family:inherit;font-size:14px" placeholder="Mensagem completa do comunicado…"></textarea>
+          </div>
+          <div class="form-grupo" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="com-destaque" name="destaque">
+            <label for="com-destaque" style="margin:0;cursor:pointer">⭐ Marcar como destaque (aparece com fundo amarelo)</label>
+          </div>
+          <button type="submit" class="btn btn-verde">Publicar comunicado</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>📋 Comunicados publicados</h2>
+        <div id="lista-comunicados-admin"></div>
+      </div>
+    </section>
+
+    <section id="tab-aparencia" style="display:none">
+      <div class="card">
+        <h2>🎨 Aparência do site</h2>
+        <p style="font-size:13px;color:var(--cinza);margin-top:0">
+          Personalize o <b>logo</b> (aparece no login e no topo) e o <b>banner</b> (foto principal no topo do site).
+          Formatos aceitos: JPG, PNG, WEBP ou SVG, até 5 MB.
+        </p>
+
+        <div class="preview-aparencia">
+          <div class="item">
+            <div class="rotulo">Logo atual</div>
+            <img id="prev-logo" class="preview-logo" alt="Logo">
+            <div>
+              <label class="btn btn-amarelo btn-sm" style="cursor:pointer">
+                📤 Trocar logo
+                <input type="file" id="up-logo" accept="image/*" style="display:none">
+              </label>
+              <button class="btn btn-outline btn-sm" id="btn-remover-logo">Restaurar</button>
+            </div>
+          </div>
+          <div class="item">
+            <div class="rotulo">Banner atual</div>
+            <div id="prev-banner" class="preview-banner"></div>
+            <div>
+              <label class="btn btn-amarelo btn-sm" style="cursor:pointer">
+                📤 Trocar banner
+                <input type="file" id="up-banner" accept="image/*" style="display:none">
+              </label>
+              <button class="btn btn-outline btn-sm" id="btn-remover-banner">Restaurar padrão</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="alerta alerta-aviso" style="font-size:13px;margin-top:16px">
+          ⚠️ No plano gratuito do Render, uploads podem ser perdidos em redeploys.
+        </div>
       </div>
     </section>
 

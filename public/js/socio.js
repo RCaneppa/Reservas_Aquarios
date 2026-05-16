@@ -12,6 +12,18 @@ let usuario = null;
 let espacoSelecionado = null;
 let slotSelecionado = null;
 
+async function carregarAparencia() {
+  try {
+    const a = await fetch('/api/aparencia').then(r => r.json());
+    document.getElementById('banner-clube').style.backgroundImage = `url('${a.banner_url}')`;
+    if (a.logo_url) {
+      const img = document.getElementById('logo-topo');
+      img.src = a.logo_url; img.style.display = 'block';
+      document.getElementById('logo-topo-fallback').style.display = 'none';
+    }
+  } catch {}
+}
+
 async function carregarUsuario() {
   const r = await fetch('/api/me');
   if (!r.ok) { window.location.href = '/'; return; }
@@ -41,11 +53,55 @@ document.querySelectorAll('.tab').forEach(t => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('ativo'));
     t.classList.add('ativo');
     const aba = t.dataset.tab;
-    document.getElementById('tab-reservar').style.display = aba === 'reservar' ? '' : 'none';
-    document.getElementById('tab-minhas').style.display = aba === 'minhas' ? '' : 'none';
+    ['reservar', 'minhas', 'comunicados'].forEach(a => {
+      document.getElementById('tab-' + a).style.display = a === aba ? '' : 'none';
+    });
     if (aba === 'minhas') carregarMinhasReservas();
+    if (aba === 'comunicados') carregarComunicados();
   });
 });
+
+async function carregarComunicados() {
+  const r = await fetch('/api/comunicados');
+  const lista = await r.json();
+  const wrap = document.getElementById('lista-comunicados-socio');
+  if (!lista.length) {
+    wrap.innerHTML = `<div class="vazio"><div class="icone-grande">📭</div>Nenhum comunicado no momento.</div>`;
+    return;
+  }
+  let html = '<div class="comunicados-lista">';
+  lista.forEach(c => {
+    html += `
+      <div class="comunicado-card ${c.destaque ? 'destaque' : ''}">
+        <div class="cab">
+          <div class="titulo">${c.destaque ? '⭐ ' : ''}${escapeHtml(c.titulo)}</div>
+          <div class="data">${formatarDT(c.criado_em)}</div>
+        </div>
+        <div class="conteudo">${escapeHtml(c.conteudo)}</div>
+      </div>`;
+  });
+  html += '</div>';
+  wrap.innerHTML = html;
+
+  // Badge no menu
+  const badge = document.getElementById('badge-comunicados');
+  if (lista.length > 0) { badge.textContent = lista.length; badge.style.display = ''; }
+  else badge.style.display = 'none';
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function formatarDT(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString('pt-BR');
+}
+
+// Pré-carrega contagem na abertura
+fetch('/api/comunicados').then(r => r.json()).then(l => {
+  const badge = document.getElementById('badge-comunicados');
+  if (l.length > 0) { badge.textContent = l.length; badge.style.display = ''; }
+}).catch(() => {});
 
 // ====== Disponibilidade ======
 document.getElementById('btn-consultar').addEventListener('click', consultarDisponibilidade);
@@ -280,4 +336,5 @@ document.getElementById('btn-sair').addEventListener('click', async () => {
 });
 
 // init
+carregarAparencia();
 carregarUsuario();

@@ -1,13 +1,34 @@
 // ====== Painel Admin ======
 let usuario = null;
 
+async function carregarAparencia() {
+  try {
+    const a = await fetch('/api/aparencia').then(r => r.json());
+    document.getElementById('banner-clube').style.backgroundImage = `url('${a.banner_url}')`;
+    if (a.logo_url) {
+      const img = document.getElementById('logo-topo');
+      img.src = a.logo_url; img.style.display = 'block';
+      document.getElementById('logo-topo-fallback').style.display = 'none';
+    }
+    // Preview na aba aparência
+    const prevLogo = document.getElementById('prev-logo');
+    if (prevLogo) prevLogo.src = a.logo_url || '/img/site/__placeholder__';
+    const prevBanner = document.getElementById('prev-banner');
+    if (prevBanner) prevBanner.style.backgroundImage = `url('${a.banner_url}')`;
+  } catch {}
+}
+
 async function init() {
   const r = await fetch('/api/me');
   if (!r.ok) { window.location.href = '/'; return; }
   usuario = await r.json();
   if (usuario.papel !== 'admin') { window.location.href = '/painel'; return; }
   document.getElementById('user-nome').textContent = usuario.nome;
-  await Promise.all([carregarReservas(), carregarKPIs()]);
+  await Promise.all([carregarAparencia(), carregarReservas(), carregarKPIs()]);
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
 function formatarData(iso) {
@@ -27,13 +48,15 @@ document.querySelectorAll('.tab').forEach(t => {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('ativo'));
     t.classList.add('ativo');
     const aba = t.dataset.tab;
-    ['reservas', 'socios', 'cadastros', 'espacos', 'infracoes', 'audit'].forEach(a => {
+    ['reservas', 'socios', 'cadastros', 'espacos', 'comunicados', 'aparencia', 'infracoes', 'audit'].forEach(a => {
       document.getElementById('tab-' + a).style.display = a === aba ? '' : 'none';
     });
     if (aba === 'socios') carregarSocios();
     if (aba === 'infracoes') carregarInfracoes();
     if (aba === 'audit') carregarAudit();
     if (aba === 'espacos') carregarEspacos();
+    if (aba === 'comunicados') carregarComunicadosAdmin();
+    if (aba === 'aparencia') carregarAparencia();
     if (aba === 'cadastros') { /* nada a carregar */ }
   });
 });
@@ -477,6 +500,104 @@ btnAdimp.addEventListener('click', async () => {
   adimpNome.textContent = 'Nenhum arquivo selecionado';
   btnAdimp.disabled = true;
 });
+
+// ====== Comunicados ======
+document.getElementById('form-comunicado').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const dados = {
+    titulo: form.titulo.value.trim(),
+    conteudo: form.conteudo.value.trim(),
+    destaque: form.destaque.checked,
+  };
+  const r = await fetch('/api/admin/comunicados', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dados)
+  });
+  const j = await r.json();
+  const alerta = document.getElementById('alerta-com');
+  if (!r.ok) { alerta.innerHTML = `<div class="alerta alerta-erro">❌ ${j.erro}</div>`; return; }
+  alerta.innerHTML = `<div class="alerta alerta-sucesso">✅ Comunicado publicado.</div>`;
+  form.reset();
+  carregarComunicadosAdmin();
+});
+
+async function carregarComunicadosAdmin() {
+  const r = await fetch('/api/admin/comunicados');
+  const lista = await r.json();
+  const wrap = document.getElementById('lista-comunicados-admin');
+  if (!lista.length) {
+    wrap.innerHTML = `<div class="vazio"><div class="icone-grande">📭</div>Nenhum comunicado cadastrado.</div>`;
+    return;
+  }
+  let html = '<div class="comunicados-lista">';
+  lista.forEach(c => {
+    const cls = !c.ativo ? 'inativo' : (c.destaque ? 'destaque' : '');
+    html += `
+      <div class="comunicado-card ${cls}">
+        <div class="cab">
+          <div class="titulo">${c.destaque ? '⭐ ' : ''}${escapeHtml(c.titulo)}
+            ${!c.ativo ? ' <span class="badge badge-cinza">Inativo</span>' : ''}
+          </div>
+          <div class="data">${new Date(c.criado_em).toLocaleString('pt-BR')}</div>
+        </div>
+        <div class="conteudo">${escapeHtml(c.conteudo)}</div>
+        <div class="acoes">
+          <button class="btn btn-outline btn-sm" onclick="toggleAtivoComunicado(${c.id}, ${c.ativo ? 0 : 1})">
+            ${c.ativo ? '🚫 Desativar' : '✅ Ativar'}
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="toggleDestaqueComunicado(${c.id}, ${c.destaque ? 0 : 1})">
+            ${c.destaque ? 'Remover destaque' : '⭐ Destacar'}
+          </button>
+          <button class="btn btn-vermelho btn-sm" onclick="removerComunicado(${c.id})">🗑️ Remover</button>
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+async function toggleAtivoComunicado(id, novo) {
+  await fetch(`/api/admin/comunicados/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ativo: novo })
+  });
+  carregarComunicadosAdmin();
+}
+async function toggleDestaqueComunicado(id, novo) {
+  await fetch(`/api/admin/comunicados/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ destaque: novo })
+  });
+  carregarComunicadosAdmin();
+}
+async function removerComunicado(id) {
+  if (!confirm('Remover este comunicado permanentemente?')) return;
+  await fetch(`/api/admin/comunicados/${id}`, { method: 'DELETE' });
+  carregarComunicadosAdmin();
+}
+
+// ====== Aparência ======
+document.getElementById('up-logo').addEventListener('change', (e) => uploadAparencia('logo', e.target.files[0]));
+document.getElementById('up-banner').addEventListener('change', (e) => uploadAparencia('banner', e.target.files[0]));
+document.getElementById('btn-remover-logo').addEventListener('click', () => removerAparencia('logo'));
+document.getElementById('btn-remover-banner').addEventListener('click', () => removerAparencia('banner'));
+
+async function uploadAparencia(tipo, file) {
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('imagem', file);
+  const r = await fetch(`/api/admin/aparencia/${tipo}`, { method: 'POST', body: fd });
+  const j = await r.json();
+  if (!r.ok) { alert('❌ ' + (j.erro || 'Erro')); return; }
+  carregarAparencia();
+}
+
+async function removerAparencia(tipo) {
+  if (!confirm(`Restaurar ${tipo} para o padrão?`)) return;
+  await fetch(`/api/admin/aparencia/${tipo}`, { method: 'DELETE' });
+  carregarAparencia();
+}
 
 document.getElementById('btn-sair').addEventListener('click', async () => {
   await fetch('/api/logout', { method: 'POST' });

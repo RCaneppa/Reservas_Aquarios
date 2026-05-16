@@ -81,6 +81,23 @@ function init() {
       criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS comunicados (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      titulo TEXT NOT NULL,
+      conteudo TEXT NOT NULL,
+      destaque INTEGER NOT NULL DEFAULT 0,
+      ativo INTEGER NOT NULL DEFAULT 1,
+      criado_por INTEGER,
+      criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(criado_por) REFERENCES socios(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS config_site (
+      chave TEXT PRIMARY KEY,
+      valor TEXT,
+      atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS senha_reset_tokens (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       socio_id INTEGER NOT NULL,
